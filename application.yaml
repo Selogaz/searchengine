@@ -1,4 +1,6 @@
 indexing-settings:
+  user-agent: "HeliontSearchBot"
+  referrer: "http://www.google.com"
   sites:
     - url: https://www.lenta.ru
       name: Лента.ру
@@ -20,6 +22,13 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: true
+
+logging:
+  level:
+    org.hibernate: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type: DEBUG
+    org.hibernate.tool.schema: DEBUG
 
