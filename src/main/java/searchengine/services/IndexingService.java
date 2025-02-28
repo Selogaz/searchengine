@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import searchengine.config.IndexingConfig;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.Response;
@@ -36,16 +37,15 @@ public class IndexingService {
     private static final Logger log = LoggerFactory.getLogger(IndexingService.class);
 
     @Autowired
+    private final IndexingConfig indexingConfig;
+
+    @Autowired
     private final SiteRepository siteRepository;
 
     @Autowired
     private final PageRepository pageRepository;
 
-    @Value("${indexing-settings.user-agent}")
-    private String userAgent;
 
-    @Value("${indexing-settings.referrer}")
-    private String referrer;
 
     @Autowired
     private final SitesList sites;
@@ -60,6 +60,7 @@ public class IndexingService {
 
     private final String INDEXING_ALREADY_STARTED = "Индексация уже запущена";
     private final String INDEXING_STOPPED_BY_USER = "Индексация остановлена пользователем";
+    private final String INDEXING_NOT_STARTED = "Индексация не запущена";
 
     public Response startFullIndexing() {
         Response response;
@@ -169,7 +170,7 @@ public class IndexingService {
         Set<PageEntity> sitePageBuffer = ConcurrentHashMap.newKeySet();
         SiteMap siteMap = new SiteMap(attachedSite.getUrl());
         return new SiteMapRecursiveAction(siteMap, attachedSite, pageRepository, isStopped,
-                sitePageBuffer, linksPool);
+                sitePageBuffer, linksPool, indexingConfig);
     }
 
     private boolean isIndexingStarted() {
@@ -185,8 +186,8 @@ public class IndexingService {
     public Response stopIndexing() {
         Response response;
         if (!isIndexingStarted()) {
-            ErrorResponse errorResponse = new ErrorResponse("Индексация не запущена");
-            log.warn("Индексация не запущена");
+            ErrorResponse errorResponse = new ErrorResponse(INDEXING_NOT_STARTED);
+            log.warn(INDEXING_NOT_STARTED);
             errorResponse.setResult(true);
             response = errorResponse;
             return response;

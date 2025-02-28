@@ -8,6 +8,8 @@ import org.jsoup.nodes.Document;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import searchengine.config.IndexingConfig;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 
@@ -39,14 +41,23 @@ public class SiteMapRecursiveAction extends RecursiveAction {
             ".jpg", ".jpeg", "?_ga","pptx","xlsx","eps",".webp",".png", ".gif", ".pdf", ".doc", ".docx"
     );
 
+    //@Value("${indexing-settings.user-agent}")
+    private String userAgent;
+
+    //@Value("${indexing-settings.referrer}")
+    private String referrer;
+
     public SiteMapRecursiveAction(SiteMap siteMap, SiteEntity siteEntity, PageRepository pageRepository,
-                                  AtomicBoolean isStopped, Set<PageEntity> pageBuffer, Set<String> linksPool) {
+                                  AtomicBoolean isStopped, Set<PageEntity> pageBuffer, Set<String> linksPool,
+                                  IndexingConfig indexingConfig) {
         this.siteMap = siteMap;
         this.linksPool = linksPool;
         this.pageBuffer = pageBuffer;
         this.siteEntity = siteEntity;
         this.pageRepository = pageRepository;
         this.isStopped = isStopped;
+        this.userAgent = indexingConfig.getUserAgent();
+        this.referrer = indexingConfig.getReferrer();
     }
 
     @Override
@@ -73,7 +84,7 @@ public class SiteMapRecursiveAction extends RecursiveAction {
                 SiteMap childSiteMap = new SiteMap(link);
                 siteMap.addChildren(childSiteMap);
                 SiteMapRecursiveAction task = new SiteMapRecursiveAction(childSiteMap, siteEntity, pageRepository,
-                        isStopped,pageBuffer,linksPool);
+                        isStopped,pageBuffer,linksPool, new IndexingConfig(userAgent,referrer));
                 task.fork();
                 taskList.add(task);
             }
@@ -112,7 +123,8 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         try {
             doc = Jsoup.connect(url)
                     .ignoreHttpErrors(true)
-                    .userAgent("Firefox")
+                    .userAgent(userAgent)
+                    .referrer(referrer)
                     .timeout(30 * 1000)
                     .get();
         } catch (IOException e) {
