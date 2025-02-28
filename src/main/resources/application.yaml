@@ -1,0 +1,34 @@
+logging:
+  level:
+    org.hibernate: ERROR
+    org.hibernate.SQL: ERROR
+    org.hibernate.type: ERROR
+    org.hibernate.tool.schema: ERROR
+
+indexing-settings:
+  user-agent: "HeliontSearchBot"
+  referrer: "http://www.google.com"
+  sites:
+    - url: https://www.lenta.ru
+      name: Лента.ру
+    - url: https://www.skillbox.ru
+      name: Skillbox
+    - url: https://www.playback.ru
+      name: PlayBack.Ru
+
+
+server:
+  port: 8081
+
+spring:
+  datasource:
+    username: dbuser
+    password: password
+    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
