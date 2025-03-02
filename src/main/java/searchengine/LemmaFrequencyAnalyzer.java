@@ -2,6 +2,7 @@ package searchengine;
 
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
+import org.jsoup.Jsoup;
 
 import java.io.IOException;
 import java.util.*;
@@ -20,11 +21,15 @@ public class LemmaFrequencyAnalyzer {
             "МС","МЕЖД","СОЮЗ", "ПРЕДЛ", "ЧАСТ"
     );
 
+    public static String removeHtmlTags(String html) {
+        return Jsoup.parse(html).text();
+    }
+
     public static Map<String, Integer> frequencyMap(String text) {
         List<String> wordBaseForms = new ArrayList<>();
         try {
             LuceneMorphology luceneMorph = new RussianLuceneMorphology();
-            List<String> wordsList = LemmaFrequencyAnalyzer.createWordList(text);
+            List<String> wordsList = createWordList(text);
             for (String word : wordsList) {
                 String normalFormStr = luceneMorph.getNormalForms(word).toString();
                 if (isIndependentPartOfSpeech(luceneMorph.getMorphInfo(word))) {
