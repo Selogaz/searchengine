@@ -8,7 +8,7 @@ import java.util.*;
 
 public class Main {
 
-    private static final String BIG_TEXT = "я а но в не человеку и пауку паук я я";
+    private static final String BIG_TEXT = "я а но в не человеку и пауку паук я я. Шелест";
 
     private static final Set<String> FUNCTIONAL_PART_OF_SPEECH = Set.of(
             "МС","МЕЖД","СОЮЗ", "ПРЕДЛ", "ЧАСТ"

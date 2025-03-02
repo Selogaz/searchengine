@@ -6,8 +6,18 @@ import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class SequentialWordsNumbers {
+    private static final Set<Character> PUNCTUATION_MARKS = Set.of(
+            '!', ',', '.', ':', ';', '?',   // Базовые знаки
+            '\'', '"',                       // Кавычки
+            '(', ')', '[', ']', '{', '}',    // Скобки
+            '-', '–', '—',                   // Дефис, тире среднее и длинное
+            '«', '»', '“', '”', '‘', '’',   // Разные типы кавычек
+            '/', '\\', '|',                  // Слэши и черта
+            '…'                              // Многоточие (один символ Unicode)
+    );
 
     public static List<String> sequentialWordsNumbers(String text){
 //        LuceneMorphology luceneMorph = null;
@@ -32,11 +42,12 @@ public class SequentialWordsNumbers {
             if (nextChar == ' ') {
                 words.add(stringBuilder.toString());
                 stringBuilder = new StringBuilder();
-            } else {
+            } else if (!PUNCTUATION_MARKS.contains(nextChar)) {
+
                 stringBuilder.append(nextChar);
             }
         }
-        words.add(stringBuilder.toString());
+        words.add(stringBuilder.toString().toLowerCase());
         return words;
     }
 }
