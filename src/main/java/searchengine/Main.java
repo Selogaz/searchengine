@@ -19,10 +19,11 @@ public class Main {
             LuceneMorphology luceneMorph = new RussianLuceneMorphology();
 
             List<String> wordBaseForms = new ArrayList<>();
-            List<String> result = SequentialWordsNumbers.sequentialWordsNumbers(BIG_TEXT);
-            for (String s : result) {
-                if (isIndependentPartOfSpeech(luceneMorph.getMorphInfo(s))) {
-                    wordBaseForms.add(luceneMorph.getNormalForms(s).toString());
+            List<String> wordsList = SequentialWordsNumbers.sequentialWordsNumbers(BIG_TEXT);
+            for (String word : wordsList) {
+                String normalFormStr = luceneMorph.getNormalForms(word).toString();
+                if (isIndependentPartOfSpeech(luceneMorph.getMorphInfo(word))) {
+                    wordBaseForms.add(normalFormStr.substring(1, normalFormStr.indexOf(']')));
                 }
             }
 
@@ -38,15 +39,15 @@ public class Main {
 
     }
 
-    private static boolean isIndependentPartOfSpeech(List<String> word) {
-        String lowerWord = word.toString();
-        return FUNCTIONAL_PART_OF_SPEECH.stream().noneMatch(lowerWord::contains);
+    private static boolean isIndependentPartOfSpeech(List<String> wordList) {
+        String wordStr = wordList.toString();
+        return FUNCTIONAL_PART_OF_SPEECH.stream().noneMatch(wordStr::contains);
     }
 
     public static Map<String, Integer> countFrequency(Collection<String> collection) {
         Map<String, Integer> frequencyMap = new HashMap<>();
         for (String item : collection) {
-            frequencyMap.merge(item.substring(1,item.indexOf(']')), 1, Integer::sum);
+            frequencyMap.merge(item, 1, Integer::sum);
         }
         return frequencyMap;
     }
