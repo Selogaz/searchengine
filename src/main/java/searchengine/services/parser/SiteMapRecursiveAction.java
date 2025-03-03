@@ -41,11 +41,9 @@ public class SiteMapRecursiveAction extends RecursiveAction {
             ".jpg", ".jpeg", "?_ga","pptx","xlsx","eps",".webp",".png", ".gif", ".pdf", ".doc", ".docx"
     );
 
-    //@Value("${indexing-settings.user-agent}")
     private String userAgent;
-
-    //@Value("${indexing-settings.referrer}")
     private String referrer;
+    private Integer timeout;
 
     public SiteMapRecursiveAction(SiteMap siteMap, SiteEntity siteEntity, PageRepository pageRepository,
                                   AtomicBoolean isStopped, Set<PageEntity> pageBuffer, Set<String> linksPool,
@@ -58,6 +56,7 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         this.isStopped = isStopped;
         this.userAgent = indexingConfig.getUserAgent();
         this.referrer = indexingConfig.getReferrer();
+        this.timeout = indexingConfig.getTimeout();
     }
 
     @Override
@@ -84,7 +83,7 @@ public class SiteMapRecursiveAction extends RecursiveAction {
                 SiteMap childSiteMap = new SiteMap(link);
                 siteMap.addChildren(childSiteMap);
                 SiteMapRecursiveAction task = new SiteMapRecursiveAction(childSiteMap, siteEntity, pageRepository,
-                        isStopped,pageBuffer,linksPool, new IndexingConfig(userAgent,referrer));
+                        isStopped,pageBuffer,linksPool, new IndexingConfig(userAgent,referrer,timeout));
                 task.fork();
                 taskList.add(task);
             }
@@ -125,7 +124,7 @@ public class SiteMapRecursiveAction extends RecursiveAction {
                     .ignoreHttpErrors(true)
                     .userAgent(userAgent)
                     .referrer(referrer)
-                    .timeout(30 * 1000)
+                    .timeout(timeout)
                     .get();
         } catch (IOException e) {
             log.error("IOException -> failed to get Document");

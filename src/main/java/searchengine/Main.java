@@ -4,7 +4,7 @@ import java.util.*;
 
 public class Main {
 
-    private static final String BIG_TEXT = "я а но в не человеку и пауку паук я я. Шелест";
+    private static final String BIG_TEXT = "99 1я а но в не человеку и пауку паук я я. Шелест фd";
 
     public static void main(String[] args) {
         //String text = LemmaFrequencyAnalyzer.removeHtmlTags(String content);
