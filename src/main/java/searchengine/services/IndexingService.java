@@ -50,9 +50,7 @@ public class IndexingService {
 
     private ForkJoinPool forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
     List<ForkJoinTask<?>> tasks = new CopyOnWriteArrayList<>();
-
     private ThreadPoolExecutor executor;
-
     private AtomicBoolean isStopped = new AtomicBoolean(true);
     private SiteMapRecursiveAction task;
 
@@ -112,7 +110,6 @@ public class IndexingService {
             } catch (Exception e) {
                 siteEntity.setStatus(Status.FAILED);
                 siteEntity.setLastError(e.getMessage());
-                //log.warn("Статус индексации FAILED: {}", String.valueOf(e));
                 return;
             } finally {
                 siteEntity.setStatusTime(Date.from(Instant.now()));
@@ -168,10 +165,12 @@ public class IndexingService {
     public Response addOrUpdatePage(String url) {
         Response response;
         if (isSiteExistsInConfig(url)) {
+            log.info("Страница принадлежит сайту из конфигурации! Обработка...");
             addOnePage(url);
             IndexingResponse okResponse = new IndexingResponse();
             okResponse.setResult(true);
             response = okResponse;
+            log.info("Страница успешно добавлена/обновлена");
         } else {
             ErrorResponse errorResponse = new ErrorResponse(PAGE_OUT_OF_CONFIG);
             log.warn(PAGE_OUT_OF_CONFIG);

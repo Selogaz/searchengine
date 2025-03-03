@@ -10,16 +10,12 @@ import java.util.*;
 
 public class LemmaFrequencyAnalyzer {
     private static final Set<Character> PUNCTUATION_MARKS = Set.of(
-            '!', ',', '.', ':', ';', '?',   // Базовые знаки
-            '\'', '"',                       // Кавычки
-            '(', ')', '[', ']', '{', '}',    // Скобки
-            '-', '–', '—',                   // Дефис, тире среднее и длинное
-            '«', '»', '“', '”', '‘', '’',   // Разные типы кавычек
-            '/', '\\', '|',                  // Слэши и черта
-            '…'                              // Многоточие (один символ Unicode)
+            '!', ',', '.', ':', ';', '?', '\'', '"', '(', ')',
+            '[', ']', '{', '}', '-', '–', '—', '«', '»', '“', '”',
+            '‘', '’', '/', '\\', '|', '…'
     );
     private static final Set<String> FUNCTIONAL_PART_OF_SPEECH = Set.of(
-            "МС","МЕЖД","СОЮЗ", "ПРЕДЛ", "ЧАСТ","CONJ",
+            "МС", "МЕЖД", "СОЮЗ", "ПРЕДЛ", "ЧАСТ", "CONJ",
             "INT", "PREP", "ARTICLE", "PART"
     );
 
@@ -30,79 +26,113 @@ public class LemmaFrequencyAnalyzer {
     public static Map<String, Integer> frequencyMap(String text) {
         List<String> wordBaseForms = new ArrayList<>();
         try {
-            String normalFormStr;
             LuceneMorphology rusLuceneMorph = new RussianLuceneMorphology();
             LuceneMorphology engLuceneMorph = new EnglishLuceneMorphology();
             List<String> wordsList = createWordList(text);
             for (String word : wordsList) {
-                if (isRussian(word)) {
-                    normalFormStr = rusLuceneMorph.getNormalForms(word).toString();
-                    if (isIndependentPartOfSpeech(rusLuceneMorph.getMorphInfo(word))) {
-                        wordBaseForms.add(normalFormStr.substring(1, normalFormStr.indexOf(']')));
-                    }
-                } else if (isDigit(word)) {
+                if (word.isEmpty()) continue;
+                if (isDigit(word)) {
                     wordBaseForms.add(word);
+                } else if (isCyrillic(word)) {
+                    processWordWithMorphology(word, rusLuceneMorph, wordBaseForms);
                 } else {
-                    normalFormStr = engLuceneMorph.getNormalForms(word).toString();
-                    if (isIndependentPartOfSpeech(engLuceneMorph.getMorphInfo(word))) {
-                        wordBaseForms.add(normalFormStr.substring(1, normalFormStr.indexOf(']')));
-                    }
+                    processWordWithMorphology(word, engLuceneMorph, wordBaseForms);
                 }
-
             }
         } catch (IOException e) {
-            System.out.println("Ошибочка");
-        } catch (NullPointerException e) {
-            System.out.println("NPE");
+            System.out.println("Ошибка при инициализации морфологического анализатора");
         }
         return countFrequency(wordBaseForms);
     }
 
-    private static boolean isRussian(String word) {
-        return word.chars()
-                .mapToObj(Character.UnicodeBlock::of)
-                .anyMatch(Character.UnicodeBlock.CYRILLIC::equals);
+    private static void processWordWithMorphology(String word, LuceneMorphology morphology, List<String> wordBaseForms) {
+        try {
+            List<String> morphInfo = morphology.getMorphInfo(word);
+            if (isIndependentPartOfSpeech(morphInfo)) {
+                String normalForm = morphology.getNormalForms(word).get(0);
+                wordBaseForms.add(normalForm);
+            }
+        } catch (Exception e) {
+            // Игнорируем слова, которые не могут быть обработаны анализатором
+        }
+    }
+
+    private static boolean isCyrillic(String word) {
+        return word.chars().anyMatch(c -> Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CYRILLIC);
     }
 
     private static boolean isDigit(String word) {
-        return word.chars()
-                .anyMatch(Character::isDigit);
+        return !word.isEmpty() && word.chars().allMatch(Character::isDigit);
     }
 
-    private static List<String> createWordList(String text){
+    private static List<String> createWordList(String text) {
         List<String> words = new ArrayList<>();
-        StringBuilder stringBuilder = new StringBuilder();
+        StringBuilder currentWord = new StringBuilder();
+        CharType lastLangType = null;
 
         for (int i = 0; i < text.length(); i++) {
-            char nextChar = text.charAt(i);
-            if (nextChar == ' ' && !stringBuilder.isEmpty()) {
-                words.add(stringBuilder.toString().toLowerCase());
-                stringBuilder = new StringBuilder();
-            } else if (Character.isDigit(nextChar)) {
-                stringBuilder.append(nextChar);
-                words.add(stringBuilder.toString());
-                stringBuilder = new StringBuilder();
+            char currentChar = text.charAt(i);
+            if (currentChar == ' ' || PUNCTUATION_MARKS.contains(currentChar)) {
+                if (!currentWord.isEmpty()) {
+                    words.add(currentWord.toString().toLowerCase());
+                    currentWord.setLength(0);
+                    lastLangType = null;
+                }
+                continue;
             }
-            else if (!PUNCTUATION_MARKS.contains(nextChar)) {
-                stringBuilder.append(nextChar);
+
+            CharType currentType = getCharType(currentChar);
+            CharType currentLangType = (currentType == CharType.RUSSIAN || currentType == CharType.ENGLISH) ? currentType : null;
+
+            if (currentLangType != null) {
+                if (lastLangType != null && lastLangType != currentLangType) {
+                    words.add(currentWord.toString().toLowerCase());
+                    currentWord.setLength(0);
+                }
+                lastLangType = currentLangType;
+                currentWord.append(currentChar);
+            } else {
+                if (lastLangType != null) {
+                    currentWord.append(currentChar);
+                }
             }
         }
-        words.add(stringBuilder.toString().toLowerCase());
+
+        if (!currentWord.isEmpty()) {
+            words.add(currentWord.toString().toLowerCase());
+        }
+
         return words;
     }
 
-    private static boolean isIndependentPartOfSpeech(List<String> wordList) {
-        String wordStr = wordList.toString();
-        return FUNCTIONAL_PART_OF_SPEECH.stream().noneMatch(wordStr::contains);
+    private static CharType getCharType(char c) {
+        if (Character.isDigit(c)) {
+            return CharType.DIGIT;
+        }
+        Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+        if (block == Character.UnicodeBlock.CYRILLIC) {
+            return CharType.RUSSIAN;
+        } else if (block == Character.UnicodeBlock.BASIC_LATIN) {
+            return CharType.ENGLISH;
+        } else {
+            return CharType.OTHER;
+        }
+    }
+
+    private static boolean isIndependentPartOfSpeech(List<String> morphInfo) {
+        return morphInfo.stream()
+                .noneMatch(info -> FUNCTIONAL_PART_OF_SPEECH.stream().anyMatch(info::contains));
     }
 
     private static Map<String, Integer> countFrequency(Collection<String> collection) {
         Map<String, Integer> frequencyMap = new HashMap<>();
         for (String item : collection) {
-            frequencyMap.merge(item, 1, Integer::sum);
+            frequencyMap.put(item, frequencyMap.getOrDefault(item, 0) + 1);
         }
         return frequencyMap;
     }
+
+    private enum CharType {
+        RUSSIAN, ENGLISH, DIGIT, OTHER
+    }
 }
-
-
