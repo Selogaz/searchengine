@@ -99,7 +99,7 @@ public class IndexingService {
 
             try {
                 forkJoinPool.submit(() -> {
-                    indexPage(siteEntity.getId());//запуск задачи
+                    indexPage(siteEntity.getId());
                 }).join();
                 if (isStopped.get()) {
                     siteEntity.setStatus(Status.FAILED);
@@ -109,10 +109,10 @@ public class IndexingService {
                 siteEntity.setStatusTime(Date.from(Instant.now()));
             } catch (Exception e) {
                 siteEntity.setStatus(Status.FAILED);
+                siteEntity.setStatusTime(Date.from(Instant.now()));
                 siteEntity.setLastError(e.getMessage());
                 return;
             } finally {
-                siteEntity.setStatusTime(Date.from(Instant.now()));
                 siteRepository.save(siteEntity);
             }
             if (siteEntity.getStatus().equals(Status.INDEXED) && !isStopped.get()) {
@@ -192,7 +192,6 @@ public class IndexingService {
             log.error("Страница вернула ошибку: {}", downloadResult.statusCode);
             return;
         }
-
         PageEntity pageEntity = savePage(siteEntity, path, downloadResult);
         processPageContent(pageEntity);
     }
@@ -208,8 +207,9 @@ public class IndexingService {
 
     @Transactional
     protected void processPageContent(PageEntity page) {
-        String text = LemmaFrequencyAnalyzer.removeHtmlTags(page.getContent());
-        Map<String, Integer> lemmas = LemmaFrequencyAnalyzer.frequencyMap(text);
+        LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
+        String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
+        Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
         updateLemmasAndIndices(page, lemmas);
     }
 
@@ -286,17 +286,15 @@ public class IndexingService {
             if (lemmaOpt.isPresent()) {
                 lemma = lemmaOpt.get();
             }
-            try {
+            if (lemma != null) {
                 lemma.setFrequency(lemma.getFrequency() - 1);
-            } catch (NullPointerException e) {
-                log.error("NPE ");
-                return;
-            }
-
-            if (lemma.getFrequency() == 0) {
-                lemmaRepository.delete(lemma);
+                if (lemma.getFrequency() == 0) {
+                    lemmaRepository.delete(lemma);
+                } else {
+                    lemmaRepository.save(lemma);
+                }
             } else {
-                lemmaRepository.save(lemma);
+                log.error("lemma is null ");
             }
             indexRepository.delete(index);
         }
@@ -308,7 +306,7 @@ public class IndexingService {
         Set<PageEntity> sitePageBuffer = ConcurrentHashMap.newKeySet();
         SiteMap siteMap = new SiteMap(attachedSite.getUrl());
         return new SiteMapRecursiveAction(siteMap, attachedSite, pageRepository, isStopped,
-                sitePageBuffer, linksPool, indexingConfig);
+                sitePageBuffer, linksPool, indexingConfig, indexRepository, lemmaRepository);
     }
 
     private boolean isIndexingStarted() {

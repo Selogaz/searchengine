@@ -19,11 +19,11 @@ public class LemmaFrequencyAnalyzer {
             "INT", "PREP", "ARTICLE", "PART"
     );
 
-    public static String removeHtmlTags(String html) {
+    public String removeHtmlTags(String html) {
         return Jsoup.parse(html).text();
     }
 
-    public static Map<String, Integer> frequencyMap(String text) {
+    public Map<String, Integer> frequencyMap(String text) {
         List<String> wordBaseForms = new ArrayList<>();
         try {
             LuceneMorphology rusLuceneMorph = new RussianLuceneMorphology();
@@ -45,7 +45,7 @@ public class LemmaFrequencyAnalyzer {
         return countFrequency(wordBaseForms);
     }
 
-    private static void processWordWithMorphology(String word, LuceneMorphology morphology, List<String> wordBaseForms) {
+    private void processWordWithMorphology(String word, LuceneMorphology morphology, List<String> wordBaseForms) {
         try {
             List<String> morphInfo = morphology.getMorphInfo(word);
             if (isIndependentPartOfSpeech(morphInfo)) {
@@ -57,15 +57,15 @@ public class LemmaFrequencyAnalyzer {
         }
     }
 
-    private static boolean isCyrillic(String word) {
+    private boolean isCyrillic(String word) {
         return word.chars().anyMatch(c -> Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CYRILLIC);
     }
 
-    private static boolean isDigit(String word) {
+    private boolean isDigit(String word) {
         return !word.isEmpty() && word.chars().allMatch(Character::isDigit);
     }
 
-    private static List<String> createWordList(String text) {
+    private List<String> createWordList(String text) {
         List<String> words = new ArrayList<>();
         StringBuilder currentWord = new StringBuilder();
         CharType lastLangType = null;
@@ -105,7 +105,7 @@ public class LemmaFrequencyAnalyzer {
         return words;
     }
 
-    private static CharType getCharType(char c) {
+    private CharType getCharType(char c) {
         if (Character.isDigit(c)) {
             return CharType.DIGIT;
         }
@@ -119,12 +119,12 @@ public class LemmaFrequencyAnalyzer {
         }
     }
 
-    private static boolean isIndependentPartOfSpeech(List<String> morphInfo) {
+    private boolean isIndependentPartOfSpeech(List<String> morphInfo) {
         return morphInfo.stream()
                 .noneMatch(info -> FUNCTIONAL_PART_OF_SPEECH.stream().anyMatch(info::contains));
     }
 
-    private static Map<String, Integer> countFrequency(Collection<String> collection) {
+    private Map<String, Integer> countFrequency(Collection<String> collection) {
         Map<String, Integer> frequencyMap = new HashMap<>();
         for (String item : collection) {
             frequencyMap.put(item, frequencyMap.getOrDefault(item, 0) + 1);

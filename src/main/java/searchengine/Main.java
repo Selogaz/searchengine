@@ -8,7 +8,8 @@ public class Main {
 
     public static void main(String[] args) {
         //String text = LemmaFrequencyAnalyzer.removeHtmlTags(String content);
-        Map<String, Integer> frequencyMap = LemmaFrequencyAnalyzer.frequencyMap(BIG_TEXT);
+        LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
+        Map<String, Integer> frequencyMap = frequencyAnalyzer.frequencyMap(BIG_TEXT);
         for (Map.Entry<String, Integer> entry : frequencyMap.entrySet()) {
             System.out.println(entry.getKey() + " - " + entry.getValue());
         }
