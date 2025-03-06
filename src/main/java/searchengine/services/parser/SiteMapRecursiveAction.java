@@ -201,53 +201,22 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
         String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
         Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
-
-        Map<LemmaEntity,IndexEntity> lemmaIndexMap = updateLemmasAndIndices(page, lemmas);
-        lemmaIndexMap = updateIndexLemmaId(lemmaIndexMap, page);
-
-
-//        lemmaIndexMap.forEach((lemma,index) -> {
-//            //индексу нужно присвоить lemmaId. Как?
-//        });
-        indexRepository.saveAll(lemmaIndexMap.values());
+        updateLemmasAndIndices(page, lemmas);
         log.info("индексы и леммы обновлены для страницы: {}", page.getId());
     }
 
-    private Map<LemmaEntity,IndexEntity> updateIndexLemmaId(Map<LemmaEntity,IndexEntity> lemmaIndexMap, PageEntity page) {
-        lemmaIndexMap.forEach((lemma,index) -> {
-            LemmaEntity newLemma = lemmaRepository.findByLemmaAndSite(lemma.getLemma(), page.getSite())
-                    .orElseGet(() -> createNewLemma(lemma.getLemma(), page.getSite()));
-            if (lemma.getId() == null) {
-                Optional<LemmaEntity> lemmaOpt = lemmaRepository.findByLemmaAndSite(lemma.getLemma(), page.getSite());
-                lemmaOpt.ifPresent(lemmaEntity -> lemma.setId(lemmaEntity.getId()));
-            }
-            index.setLemmaId(newLemma.getId());
-        });
-        return lemmaIndexMap;
-    }
-
     @Transactional
-    protected Map<LemmaEntity,IndexEntity> updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
-        Map<LemmaEntity,IndexEntity> lemmaIndexMap = new ConcurrentHashMap<>();
+    protected void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
         lemmas.forEach((lemmaText, rank) -> {
-            LemmaEntity lemma = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite())
-                    .orElseGet(() -> createNewLemma(lemmaText, page.getSite()));
-            if (lemma.getId() == null) {
-                Optional<LemmaEntity> lemmaOpt = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite());
-                lemmaOpt.ifPresent(lemmaEntity -> lemma.setId(lemmaEntity.getId()));
+            Optional<LemmaEntity> lemmaOpt = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite());
+            if (lemmaOpt.isPresent()) {
+                lemmaOpt.get().setFrequency(lemmaOpt.get().getFrequency() + 1);
+                createNewIndex(page,Float.valueOf(rank),lemmaOpt.get().getId());
+            } else {
+                LemmaEntity createdLemma = createNewLemma(lemmaText, page.getSite());
+                createNewIndex(page,Float.valueOf(rank),createdLemma.getId());
             }
-            lemma.setFrequency(lemma.getFrequency() + 1);
-            //lemmaRepository.save(lemma);
-
-            IndexEntity index = createNewIndex(page,Float.valueOf(rank),lemma.getId());
-//            index.setPage(page);
-//            index.setRank(Float.valueOf(rank));
-//            index.setLemmaId(lemma.getId());//эта сволочь вечно null
-            lemmaIndexMap.put(lemma,index);
         });
-
-        //lemmaRepository.saveAll(lemmaIndexMap.keySet());
-        return lemmaIndexMap;
     }
 
     @Transactional
@@ -255,19 +224,18 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         LemmaEntity lemma = new LemmaEntity();
         lemma.setLemma(lemmaText);
         lemma.setSite(site);
-        lemma.setFrequency(0);
+        lemma.setFrequency(1);
         lemmaRepository.save(lemma);
         return lemma;
     }
 
     @Transactional
-    private IndexEntity createNewIndex(PageEntity page, Float rank, Integer lemmaId) {
+    private void createNewIndex(PageEntity page, Float rank, Integer lemmaId) {
         IndexEntity index = new IndexEntity();
         index.setPage(page);
         index.setRank(rank);
         index.setLemmaId(lemmaId);
         indexRepository.save(index);
-        return index;
     }
 }
 
