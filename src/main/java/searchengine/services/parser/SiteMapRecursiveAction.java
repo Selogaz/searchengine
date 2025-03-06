@@ -207,16 +207,26 @@ public class SiteMapRecursiveAction extends RecursiveAction {
 
     @Transactional
     protected void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
+        List<IndexEntity> indices = new ArrayList<>();
+        int siteId = page.getSite().getId();
+
         lemmas.forEach((lemmaText, rank) -> {
-            Optional<LemmaEntity> lemmaOpt = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite());
-            if (lemmaOpt.isPresent()) {
-                lemmaOpt.get().setFrequency(lemmaOpt.get().getFrequency() + 1);
-                createNewIndex(page,Float.valueOf(rank),lemmaOpt.get().getId());
-            } else {
-                LemmaEntity createdLemma = createNewLemma(lemmaText, page.getSite());
-                createNewIndex(page,Float.valueOf(rank),createdLemma.getId());
-            }
+            lemmaRepository.upsertLemma(lemmaText, siteId);
+            LemmaEntity lemma = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite())
+                    .orElseThrow();
+            IndexEntity index = new IndexEntity();
+            index.setPage(page);
+            index.setLemmaId(lemma.getId());
+            index.setRank((float) rank);
+            indices.add(index);
         });
+        indexRepository.saveAll(indices);
+    }
+
+    @Transactional
+    private void updateLemmaFrequency(LemmaEntity lemma) {
+        lemma.setFrequency(lemma.getFrequency() + 1);
+        lemmaRepository.save(lemma);
     }
 
     @Transactional

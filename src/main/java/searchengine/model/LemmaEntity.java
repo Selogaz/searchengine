@@ -8,7 +8,11 @@ import javax.persistence.*;
 @Getter
 @Setter
 @Entity(name = "lemma")
-@Table(name = "lemma")
+@Table(name = "lemma",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"lemma", "site_id"} // Уникальность леммы в рамках сайта
+        )
+)
 public class LemmaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
