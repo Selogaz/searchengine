@@ -10,6 +10,7 @@ import searchengine.model.LemmaEntity;
 import searchengine.model.SiteEntity;
 
 import javax.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 
 public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
@@ -25,4 +26,6 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
         ON DUPLICATE KEY UPDATE frequency = frequency + 1
         """)
     void upsertLemma(@Param("lemma") String lemma, @Param("siteId") int siteId);
+
+    List<LemmaEntity> findAllBySiteId(Integer id);
 }

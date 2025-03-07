@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.PageEntity;
 
 import javax.persistence.criteria.CriteriaBuilder;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -16,6 +17,8 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
 
     @Transactional
     void deleteBySiteId(Integer siteId);
+
+    List<PageEntity> findAllBySiteId(Integer id);
 
     //Optional<PageEntity> findByUrl(String url);
 }

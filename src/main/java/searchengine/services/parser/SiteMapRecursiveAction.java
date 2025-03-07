@@ -91,7 +91,8 @@ public class SiteMapRecursiveAction extends RecursiveAction {
                 SiteMap childSiteMap = new SiteMap(link);
                 siteMap.addChildren(childSiteMap);
                 SiteMapRecursiveAction task = new SiteMapRecursiveAction(childSiteMap, siteEntity, pageRepository,
-                        isStopped,pageBuffer,linksPool, new IndexingConfig(userAgent,referrer,timeout), indexRepository, lemmaRepository);
+                        isStopped,pageBuffer,linksPool, new IndexingConfig(userAgent,referrer,timeout), indexRepository,
+                        lemmaRepository);
                 task.fork();
                 taskList.add(task);
             }
@@ -168,6 +169,10 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         }
 
         Integer statusCode = doc.connection().response().statusCode();
+        if (statusCode >= 400) {
+            log.warn("Page status code is 4xx or 5xx");
+            return;
+        }
 
         PageEntity page = new PageEntity();
         page.setSite(siteEntity);
