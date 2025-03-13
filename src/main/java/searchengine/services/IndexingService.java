@@ -268,7 +268,8 @@ public class IndexingService {
     }
 
     private String extractPath(String pageUrl, String siteUrl) {
-        return pageUrl.substring(siteUrl.length()).replaceAll("^/", "");
+        siteUrl = siteUrl.replace("www.","");
+        return "/" + pageUrl.substring(siteUrl.length()).replaceAll("^/", "");
     }
 
     private void deleteExistingPage(SiteEntity siteEntity, String path) {
