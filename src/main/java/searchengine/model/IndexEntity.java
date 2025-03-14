@@ -9,7 +9,8 @@ import java.util.Date;
 
 @Getter
 @Setter
-@Entity(name = "`index`")
+//@Entity(name = "`index`")
+@Entity
 @Table(name = "`index`")
 public class IndexEntity {
     @Id

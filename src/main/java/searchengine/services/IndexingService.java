@@ -183,17 +183,24 @@ public class IndexingService {
     @Transactional
     public void addOnePage(String url) {
         Site siteConfig = findSiteConfigByUrl(url);
-        SiteEntity siteEntity = createSiteEntity(siteConfig);
-        siteRepository.save(siteEntity);
+        SiteEntity siteEntity;
         String path = extractPath(url,siteConfig.getUrl());
-        deleteExistingPage(siteEntity, path);
         PageDownloadResult downloadResult = downloadPage(url);
         if (downloadResult.statusCode >= 400) {
             log.error("Страница вернула ошибку: {}", downloadResult.statusCode);
             return;
         }
-        PageEntity pageEntity = savePage(siteEntity, path, downloadResult);
-        processPageContent(pageEntity);
+        Optional<SiteEntity> findedSiteEntity = siteRepository.findByName(siteConfig.getName());
+        if (findedSiteEntity.isEmpty()) {
+            siteEntity = createSiteEntity(siteConfig);
+            siteRepository.save(siteEntity);
+            PageEntity pageEntity = savePage(siteEntity, path, downloadResult);
+            processPageContent(pageEntity);
+        } else {
+            deleteExistingPage(findedSiteEntity.get(), path);
+            PageEntity pageEntity = savePage(findedSiteEntity.get(), path, downloadResult);
+            processPageContent(pageEntity);
+        }
     }
 
     private PageEntity savePage(SiteEntity siteEntity, String path, PageDownloadResult result) {
