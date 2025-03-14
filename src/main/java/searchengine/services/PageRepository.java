@@ -8,14 +8,17 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.PageEntity;
 
 import javax.persistence.criteria.CriteriaBuilder;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface PageRepository extends JpaRepository<PageEntity, Integer> {
-//    @Query("SELECT p FROM PageEntity p WHERE p.site_id.id = :siteId AND p.path = :path")
-//    Optional<PageEntity> findBySiteIdAndPath(@Param("siteId") Integer siteId, @Param("path") String path);
-    Optional<PageEntity> findBySiteIdAndPath(Integer id, String path);
+    Optional<PageEntity> findByPathAndSiteId(String path, Integer id);
 
     @Transactional
     void deleteBySiteId(Integer siteId);
+
+    List<PageEntity> findAllBySiteId(Integer id);
+
+    //Optional<PageEntity> findByUrl(String url);
 }

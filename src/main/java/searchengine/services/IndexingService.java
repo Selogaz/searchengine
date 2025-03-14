@@ -1,35 +1,29 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import searchengine.LemmaFrequencyAnalyzer;
 import searchengine.config.IndexingConfig;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.dto.Response;
 import searchengine.dto.indexing.ErrorResponse;
 import searchengine.dto.indexing.IndexingResponse;
-import searchengine.model.PageEntity;
-import searchengine.model.SiteEntity;
-import searchengine.model.Status;
+import searchengine.model.*;
 import searchengine.services.parser.SiteMap;
 import searchengine.services.parser.SiteMapRecursiveAction;
 
-import javax.persistence.NonUniqueResultException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.time.Instant;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -45,22 +39,26 @@ public class IndexingService {
     @Autowired
     private final PageRepository pageRepository;
 
+    @Autowired
+    private final IndexRepository indexRepository;
 
+    @Autowired
+    private final LemmaRepository lemmaRepository;
 
     @Autowired
     private final SitesList sites;
 
     private ForkJoinPool forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
     List<ForkJoinTask<?>> tasks = new CopyOnWriteArrayList<>();
-
     private ThreadPoolExecutor executor;
-
     private AtomicBoolean isStopped = new AtomicBoolean(true);
     private SiteMapRecursiveAction task;
 
     private final String INDEXING_ALREADY_STARTED = "Индексация уже запущена";
     private final String INDEXING_STOPPED_BY_USER = "Индексация остановлена пользователем";
     private final String INDEXING_NOT_STARTED = "Индексация не запущена";
+    private final String PAGE_OUT_OF_CONFIG = "Данная страница находится за пределами сайтов, " +
+            "указанных в конфигурационном файле";
 
     public Response startFullIndexing() {
         Response response;
@@ -101,7 +99,7 @@ public class IndexingService {
 
             try {
                 forkJoinPool.submit(() -> {
-                    indexPage(siteEntity.getId());//запуск задачи
+                    indexPage(siteEntity.getId());
                 }).join();
                 if (isStopped.get()) {
                     siteEntity.setStatus(Status.FAILED);
@@ -111,11 +109,10 @@ public class IndexingService {
                 siteEntity.setStatusTime(Date.from(Instant.now()));
             } catch (Exception e) {
                 siteEntity.setStatus(Status.FAILED);
+                siteEntity.setStatusTime(Date.from(Instant.now()));
                 siteEntity.setLastError(e.getMessage());
-                //log.warn("Статус индексации FAILED: {}", String.valueOf(e));
                 return;
             } finally {
-                siteEntity.setStatusTime(Date.from(Instant.now()));
                 siteRepository.save(siteEntity);
             }
             if (siteEntity.getStatus().equals(Status.INDEXED) && !isStopped.get()) {
@@ -165,12 +162,159 @@ public class IndexingService {
         }
     }
 
+    public Response addOrUpdatePage(String url) {
+        Response response;
+        if (isSiteExistsInConfig(url)) {
+            log.info("Страница принадлежит сайту из конфигурации! Обработка...");
+            addOnePage(url);
+            IndexingResponse okResponse = new IndexingResponse();
+            okResponse.setResult(true);
+            response = okResponse;
+            log.info("Страница успешно добавлена/обновлена");
+        } else {
+            ErrorResponse errorResponse = new ErrorResponse(PAGE_OUT_OF_CONFIG);
+            log.warn(PAGE_OUT_OF_CONFIG);
+            errorResponse.setResult(false);
+            response = errorResponse;
+        }
+        return response;
+    }
+
+    @Transactional
+    public void addOnePage(String url) {
+        Site siteConfig = findSiteConfigByUrl(url);
+        SiteEntity siteEntity;
+        String path = extractPath(url,siteConfig.getUrl());
+        PageDownloadResult downloadResult = downloadPage(url);
+        if (downloadResult.statusCode >= 400) {
+            log.error("Страница вернула ошибку: {}", downloadResult.statusCode);
+            return;
+        }
+        Optional<SiteEntity> findedSiteEntity = siteRepository.findByName(siteConfig.getName());
+        if (findedSiteEntity.isEmpty()) {
+            siteEntity = createSiteEntity(siteConfig);
+            siteRepository.save(siteEntity);
+            PageEntity pageEntity = savePage(siteEntity, path, downloadResult);
+            processPageContent(pageEntity);
+        } else {
+            deleteExistingPage(findedSiteEntity.get(), path);
+            PageEntity pageEntity = savePage(findedSiteEntity.get(), path, downloadResult);
+            processPageContent(pageEntity);
+        }
+    }
+
+    private PageEntity savePage(SiteEntity siteEntity, String path, PageDownloadResult result) {
+        PageEntity page = new PageEntity();
+        page.setSite(siteEntity);
+        page.setPath(path);
+        page.setContent(result.content);
+        page.setCode(result.statusCode);
+        return pageRepository.save(page);
+    }
+
+    @Transactional
+    protected void processPageContent(PageEntity page) {
+        LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
+        String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
+        Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
+        updateLemmasAndIndices(page, lemmas);
+    }
+
+    @Transactional
+    protected void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
+        lemmas.forEach((lemmaText, rank) -> {
+            LemmaEntity lemma = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite())
+                    .orElseGet(() -> createNewLemma(lemmaText, page.getSite()));
+            lemma.setFrequency(lemma.getFrequency() + 1);
+            lemmaRepository.save(lemma);
+
+            IndexEntity index = new IndexEntity();
+            index.setPage(page);
+            index.setLemmaId(lemma.getId());
+            index.setRank(Float.valueOf(rank));
+            indexRepository.save(index);
+        });
+    }
+
+    private LemmaEntity createNewLemma(String lemmaText, SiteEntity site) {
+        LemmaEntity lemma = new LemmaEntity();
+        lemma.setLemma(lemmaText);
+        lemma.setSite(site);
+        lemma.setFrequency(0);
+        return lemma;
+    }
+
+    private record PageDownloadResult(int statusCode, String content) {}
+    private PageDownloadResult downloadPage(String url) {
+        try {
+            Document doc = Jsoup.connect(url)
+                    .userAgent(indexingConfig.getUserAgent())
+                    .referrer(indexingConfig.getReferrer())
+                    .timeout(indexingConfig.getTimeout())
+                    .get();
+            return new PageDownloadResult(200, doc.html());
+        } catch (IOException e) {
+            return new PageDownloadResult(500, "");
+        }
+    }
+
+    private Site findSiteConfigByUrl(String url) {
+        return sites.getSites().stream()
+                .filter(site -> url.startsWith(site.getUrl().replace("www.","")))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public boolean isSiteExistsInConfig(String url) {
+        for (Site site : sites.getSites()) {
+            if (url.contains(site.getUrl().replace("www.",""))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String extractPath(String pageUrl, String siteUrl) {
+        siteUrl = siteUrl.replace("www.","");
+        return "/" + pageUrl.substring(siteUrl.length()).replaceAll("^/", "");
+    }
+
+    private void deleteExistingPage(SiteEntity siteEntity, String path) {
+        pageRepository.findByPathAndSiteId(path, siteEntity.getId())
+                .ifPresent(this::deletePageData);
+    }
+
+    @Transactional
+    protected void deletePageData(PageEntity page) {
+        List<IndexEntity> indexes = indexRepository.findByPage(page);
+        for (IndexEntity index : indexes) {
+            Integer lemmaId = index.getLemmaId();
+            Optional<LemmaEntity> lemmaOpt = lemmaRepository.findById(lemmaId);
+            LemmaEntity lemma = null;
+            if (lemmaOpt.isPresent()) {
+                lemma = lemmaOpt.get();
+            }
+            if (lemma != null) {
+                lemma.setFrequency(lemma.getFrequency() - 1);
+                if (lemma.getFrequency() == 0) {
+                    lemmaRepository.delete(lemma);
+                } else {
+                    lemmaRepository.save(lemma);
+                }
+            } else {
+                log.error("lemma is null ");
+            }
+            indexRepository.delete(index);
+        }
+        pageRepository.delete(page);
+    }
+
     private SiteMapRecursiveAction createTask(SiteEntity attachedSite) {
         Set<String> linksPool = ConcurrentHashMap.newKeySet();
         Set<PageEntity> sitePageBuffer = ConcurrentHashMap.newKeySet();
         SiteMap siteMap = new SiteMap(attachedSite.getUrl());
         return new SiteMapRecursiveAction(siteMap, attachedSite, pageRepository, isStopped,
-                sitePageBuffer, linksPool, indexingConfig);
+                sitePageBuffer, linksPool, indexingConfig, indexRepository, lemmaRepository);
     }
 
     private boolean isIndexingStarted() {

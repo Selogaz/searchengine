@@ -8,6 +8,7 @@ logging:
 indexing-settings:
   user-agent: "HeliontSearchBot"
   referrer: "http://www.google.com"
+  timeout: 30000
   sites:
     - url: https://www.lenta.ru
       name: Лента.ру
@@ -30,6 +31,5 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-
+      ddl-auto: create
+     show-sql: true
