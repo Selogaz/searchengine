@@ -38,39 +38,16 @@ public class SearchService implements SearchRepository {
 
     private final Map<String, Set<Integer>> lemmaIndex;
 
-    public Response startSearch(String query) {
+    public Response startSearch(String query, String url) {
         if (query == null || query.trim().isEmpty()) {
             return new SearchErrorResponse("Задан пустой поисковый запрос");
         }
-
-        List<SearchResult> searchResults = mainSearch(query);
+        List<SearchResult> searchResults = mainSearch(query, url);
         SearchResponse searchResponse = new SearchResponse();
         searchResponse.setData(searchResults);
         searchResponse.setCount(searchResults.size());
         searchResponse.setResult(true);
         return searchResponse;
-    }
-
-    private Set<Integer> findPagesByLemmas(List<String> sortedLemmas) {
-        if (sortedLemmas.isEmpty()) return Collections.emptySet();
-
-        Set<Integer> currentPages = null;
-
-        for (String lemma : sortedLemmas) {
-            Set<Integer> pages = lemmaIndex.getOrDefault(lemma, Collections.emptySet());
-
-            if (currentPages == null) {
-                currentPages = new HashSet<>(pages);
-            } else {
-                currentPages = currentPages.stream()
-                        .filter(pages::contains)
-                        .collect(Collectors.toSet());
-            }
-
-            if (currentPages.isEmpty()) break;
-        }
-
-        return currentPages != null ? currentPages : Collections.emptySet();
     }
 
     private Set<Integer> findPages(Map<String, Integer> sortedLemmas) {
@@ -92,7 +69,7 @@ public class SearchService implements SearchRepository {
         return resultPages;
     }
 
-    private List<SearchResult> mainSearch(String query) {
+    private List<SearchResult> mainSearch(String query, String url) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
         Map<String, Integer> excludedLemmas = excludeLemmas(frequencyAnalyzer.frequencyMap(query));
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
