@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import searchengine.dto.Response;
 import searchengine.dto.indexing.IndexingResponse;
+import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexingService;
 import searchengine.services.SearchService;
@@ -44,7 +45,7 @@ public class ApiController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Response> search(@RequestParam String query) {
+    public ResponseEntity<SearchResponse> search(@RequestParam String query) {
         return ResponseEntity.ok(searchService.startSearch(query));
     }
 }

@@ -10,4 +10,6 @@ import java.util.List;
 public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
     @Transactional
     List<IndexEntity> findByPage(PageEntity page);
+
+    List<IndexEntity> findByLemmaId(Integer lemmaId);
 }
