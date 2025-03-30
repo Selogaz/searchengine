@@ -6,6 +6,7 @@ import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFrequencyAnalyzer;
+import searchengine.config.SitesList;
 import searchengine.dto.Response;
 import searchengine.dto.search.SearchErrorResponse;
 import searchengine.dto.search.SearchResponse;
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SearchService implements SearchRepository {
 
-    private final int MAX_ALLOWED_PAGES = 20;
+    private final SitesList sites;
 
     @Autowired
     private final LemmaRepository lemmaRepository;
@@ -96,9 +97,9 @@ public class SearchService implements SearchRepository {
         Map<String, Integer> excludedLemmas = excludeLemmas(frequencyAnalyzer.frequencyMap(query));
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
         Set<Integer> resultPages = findPages(sortedLemmas);
-        List<SearchResult> results = calculateRelevance(resultPages, sortedLemmas);
-        System.out.println(results);
-        return results;
+        List<SearchResult> relevanceResults = calculateRelevance(resultPages, sortedLemmas);
+        System.out.println(relevanceResults);
+        return relevanceResults;
     }
 
     private List<SearchResult> calculateRelevance(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
@@ -124,6 +125,8 @@ public class SearchService implements SearchRepository {
                     float relevance = relevanceMap.get(pageId) / finalMaxRelevance;
                     String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
                     return new SearchResult(
+                            sites.getSites().get(0).getUrl(),
+                            sites.getSites().get(0).getName(),
                             page.getPath(),
                             extractTitleFromContent(page.getContent()),
                             snippet,
@@ -139,16 +142,10 @@ public class SearchService implements SearchRepository {
         }
 
         try {
-            // Parse the content using Jsoup
             Document document = Jsoup.parse(content);
-
-            // Extract the title
             String title = document.title();
-
-            // Return the title if it exists, otherwise return "No Title"
             return title != null && !title.trim().isEmpty() ? title.trim() : "No Title";
         } catch (Exception e) {
-            // Log the exception and return "No Title" in case of errors
             System.err.println("Error extracting title: " + e.getMessage());
             return "No Title";
         }
