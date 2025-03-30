@@ -125,7 +125,7 @@ public class SearchService implements SearchRepository {
                     float relevance = relevanceMap.get(pageId) / finalMaxRelevance;
                     String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
                     return new SearchResult(
-                            sites.getSites().get(0).getUrl(),
+                            sites.getSites().get(0).getUrl().substring(0,sites.getSites().get(0).getUrl().length() - 1),
                             sites.getSites().get(0).getName(),
                             page.getPath(),
                             extractTitleFromContent(page.getContent()),
@@ -152,12 +152,34 @@ public class SearchService implements SearchRepository {
     }
 
     private String generateSnippet(String content, Set<String> lemmas) {
+        int snippetLength = 250;
+
         Document document = Jsoup.parse(content);
         String text = document.body().text();
-        String snippet = text.substring(0, Math.min(content.length(), 150));
+
+        int matchIndex = -1;
+        for (String lemma : lemmas) {
+            Pattern pattern = Pattern.compile("(?i)" + lemma);
+            Matcher matcher = pattern.matcher(text);
+            if (matcher.find()) {
+                matchIndex = matcher.start();
+                break;
+            }
+        }
+
+        if (matchIndex == -1) {
+            return text.substring(0, Math.min(text.length(), snippetLength));
+        }
+
+        int start = Math.max(0, matchIndex - snippetLength / 2);
+        int end = Math.min(text.length(), matchIndex + snippetLength / 2);
+
+        String snippet = text.substring(start, end);
+
         for (String lemma : lemmas) {
             snippet = snippet.replaceAll("(?i)" + lemma, "<b>$0</b>");
         }
+
         return snippet;
     }
 
