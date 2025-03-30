@@ -45,7 +45,7 @@ public class ApiController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<SearchResponse> search(@RequestParam String query) {
+    public ResponseEntity<Response> search(@RequestParam String query) {
         return ResponseEntity.ok(searchService.startSearch(query));
     }
 }

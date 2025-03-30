@@ -151,7 +151,8 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         }
         String content = "";
         try {
-            content = doc.body().text();
+            //content = doc.body().text();
+            content = doc.html();
         } catch (Exception e) {
             log.warn("Ошибка при получении контекста страницы: {}", siteMap.getUrl());
         }

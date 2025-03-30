@@ -1,6 +1,8 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFrequencyAnalyzer;
@@ -35,19 +37,16 @@ public class SearchService implements SearchRepository {
 
     private final Map<String, Set<Integer>> lemmaIndex;
 
-    public SearchResponse startSearch(String query) {
-        Response response;
-        SearchResponse searchResponse = new SearchResponse();
-        if (true) {
-            searchResponse.setCount(111);
-            searchResponse.setData(mainSearch(query));
-            searchResponse.setResult(true);
-            response = searchResponse;
-        } else {
-            SearchErrorResponse errorResponse = new SearchErrorResponse("Задан пустой поисковый запрос");
-            errorResponse.setResult(false);
-            response = errorResponse;
+    public Response startSearch(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return new SearchErrorResponse("Задан пустой поисковый запрос");
         }
+
+        List<SearchResult> searchResults = mainSearch(query);
+        SearchResponse searchResponse = new SearchResponse();
+        searchResponse.setData(searchResults);
+        searchResponse.setCount(searchResults.size());
+        searchResponse.setResult(true);
         return searchResponse;
     }
 
@@ -97,9 +96,6 @@ public class SearchService implements SearchRepository {
         Map<String, Integer> excludedLemmas = excludeLemmas(frequencyAnalyzer.frequencyMap(query));
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
         Set<Integer> resultPages = findPages(sortedLemmas);
-        //System.out.println(resultPages);
-        //System.out.println(sortedLemmas.entrySet());
-
         List<SearchResult> results = calculateRelevance(resultPages, sortedLemmas);
         System.out.println(results);
         return results;
@@ -138,13 +134,30 @@ public class SearchService implements SearchRepository {
     }
 
     private String extractTitleFromContent(String content) {
-        Pattern pattern = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(content);
-        return matcher.find() ? matcher.group(1) : "No Title";
+        if (content == null || content.isEmpty()) {
+            return "No Title";
+        }
+
+        try {
+            // Parse the content using Jsoup
+            Document document = Jsoup.parse(content);
+
+            // Extract the title
+            String title = document.title();
+
+            // Return the title if it exists, otherwise return "No Title"
+            return title != null && !title.trim().isEmpty() ? title.trim() : "No Title";
+        } catch (Exception e) {
+            // Log the exception and return "No Title" in case of errors
+            System.err.println("Error extracting title: " + e.getMessage());
+            return "No Title";
+        }
     }
 
     private String generateSnippet(String content, Set<String> lemmas) {
-        String snippet = content.substring(0, Math.min(content.length(), 150));
+        Document document = Jsoup.parse(content);
+        String text = document.body().text();
+        String snippet = text.substring(0, Math.min(content.length(), 150));
         for (String lemma : lemmas) {
             snippet = snippet.replaceAll("(?i)" + lemma, "<b>$0</b>");
         }
