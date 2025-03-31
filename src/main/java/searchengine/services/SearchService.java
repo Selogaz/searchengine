@@ -14,6 +14,7 @@ import searchengine.dto.search.SearchResult;
 import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
+import searchengine.model.SiteEntity;
 
 
 import java.util.*;
@@ -35,6 +36,9 @@ public class SearchService implements SearchRepository {
 
     @Autowired
     private final IndexRepository indexRepository;
+
+    @Autowired
+    private final SiteRepository siteRepository;
 
     private final Map<String, Set<Integer>> lemmaIndex;
 
@@ -71,7 +75,7 @@ public class SearchService implements SearchRepository {
 
     private List<SearchResult> mainSearch(String query, String url) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
-        Map<String, Integer> excludedLemmas = excludeLemmas(frequencyAnalyzer.frequencyMap(query));
+        Map<String, Integer> excludedLemmas = excludeLemmas(frequencyAnalyzer.frequencyMap(query), url);
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
         Set<Integer> resultPages = findPages(sortedLemmas);
         List<SearchResult> relevanceResults = calculateRelevance(resultPages, sortedLemmas);
@@ -160,9 +164,22 @@ public class SearchService implements SearchRepository {
         return snippet;
     }
 
-    private Map<String, Integer> excludeLemmas(Map<String, Integer> queryLemmas) {
-        List<LemmaEntity> siteLemmasEntities = lemmaRepository.findAllBySiteId(1);
-        int pageCount = pageRepository.findAllBySiteId(1).size();
+    private Map<String, Integer> excludeLemmas(Map<String, Integer> queryLemmas, String url) {
+        Optional<SiteEntity> siteEntity = siteRepository.findByUrl(url);
+//        List<LemmaEntity> siteLemmasEntities = lemmaRepository.findAllBySiteId(siteEntity.get().getId());
+//        int pageCount = pageRepository.findAllBySiteId(1).size();
+        List<LemmaEntity> siteLemmasEntities;
+        int pageCount;
+        if (siteEntity.isPresent()) {
+            Integer siteId = siteEntity.get().getId();
+            siteLemmasEntities = lemmaRepository.findAllBySiteId(siteId);
+            pageCount = pageRepository.findAllBySiteId(siteId).size();
+        } else {
+            siteLemmasEntities = lemmaRepository.findAll();
+            pageCount = pageRepository.findAll().size();
+        }
+
+
         double threshold = pageCount * 0.8;
         Map<String, Integer> lemmaFreqMap = new HashMap<>();
         siteLemmasEntities.forEach(lemmaEntity -> lemmaFreqMap.put(lemmaEntity.getLemma(), lemmaEntity.getFrequency()));

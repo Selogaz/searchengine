@@ -28,4 +28,6 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
     void upsertLemma(@Param("lemma") String lemma, @Param("siteId") int siteId);
 
     List<LemmaEntity> findAllBySiteId(Integer id);
+
+
 }
