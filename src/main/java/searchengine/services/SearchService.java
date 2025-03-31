@@ -54,30 +54,56 @@ public class SearchService implements SearchRepository {
         return searchResponse;
     }
 
-    private Set<Integer> findPages(Map<String, Integer> sortedLemmas) {
-        Set<Integer> resultPages = new HashSet<>();
-        for (String lemma : sortedLemmas.keySet()) {
-            List<IndexEntity> entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
-            if (resultPages.isEmpty()) {
-                resultPages = entries.stream()
-                        .map(indexEntry -> indexEntry.getPage().getId())
-                        .collect(Collectors.toSet());
-            } else {
-                Set<Integer> currentPages = entries.stream()
-                        .map(indexEntry -> indexEntry.getPage().getId())
-                        .collect(Collectors.toSet());
-                resultPages.retainAll(currentPages);
-            }
-            if (resultPages.isEmpty()) break;
+//    private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
+//        Set<Integer> resultPages = new HashSet<>();
+//        for (String lemma : sortedLemmas.keySet()) {
+//            List<IndexEntity> entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
+//            if (resultPages.isEmpty()) {
+//                resultPages = entries.stream()
+//                        .map(indexEntry -> indexEntry.getPage().getId())
+//                        .collect(Collectors.toSet());
+//            } else {
+//                Set<Integer> currentPages = entries.stream()
+//                        .map(indexEntry -> indexEntry.getPage().getId())
+//                        .collect(Collectors.toSet());
+//                resultPages.retainAll(currentPages);
+//            }
+//            if (resultPages.isEmpty()) break;
+//        }
+//        return resultPages;
+//    }
+private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
+    Set<Integer> resultPages = null;
+
+    for (String lemma : sortedLemmas.keySet()) {
+        List<IndexEntity> entries;
+        if (url == null) {
+            entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
+        } else {
+            entries = indexRepository.findByLemmaIdAndSiteUrl(sortedLemmas.get(lemma), url);
         }
-        return resultPages;
+
+        Set<Integer> currentPages = entries.stream()
+                .map(indexEntry -> indexEntry.getPage().getId())
+                .collect(Collectors.toSet());
+
+        if (resultPages == null) {
+            resultPages = new HashSet<>(currentPages);
+        } else {
+            resultPages.retainAll(currentPages);
+        }
+
+        if (resultPages.isEmpty()) break;
     }
+
+    return resultPages != null ? resultPages : Collections.emptySet();
+}
 
     private List<SearchResult> mainSearch(String query, String url) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
         Map<String, Integer> excludedLemmas = excludeLemmas(frequencyAnalyzer.frequencyMap(query), url);
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
-        Set<Integer> resultPages = findPages(sortedLemmas);
+        Set<Integer> resultPages = findPages(sortedLemmas, url);
         List<SearchResult> relevanceResults = calculateRelevance(resultPages, sortedLemmas);
         System.out.println(relevanceResults);
         return relevanceResults;
