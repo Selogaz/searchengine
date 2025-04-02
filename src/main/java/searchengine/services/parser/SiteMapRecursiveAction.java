@@ -208,7 +208,7 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
         Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
         updateLemmasAndIndices(page, lemmas);
-        log.info("индексы и леммы обновлены для страницы: {}", page.getId());
+        //log.info("индексы и леммы обновлены для страницы: {}", page.getId());
     }
 
     @Transactional
