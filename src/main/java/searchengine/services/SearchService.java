@@ -23,24 +23,23 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 public class SearchService implements SearchRepository {
-
     private final SitesList sites;
-
-    @Autowired
     private final LemmaRepository lemmaRepository;
-
-    @Autowired
     private final PageRepository pageRepository;
-
-    @Autowired
     private final IndexRepository indexRepository;
-
-    @Autowired
     private final SiteRepository siteRepository;
 
-    private final Map<String, Set<Integer>> lemmaIndex;
+    @Autowired
+    public SearchService(LemmaRepository lemmaRepository, PageRepository pageRepository, IndexRepository indexRepository,
+                         SiteRepository siteRepository, SitesList sites) {
+        this.lemmaRepository = lemmaRepository;
+        this.pageRepository = pageRepository;
+        this.indexRepository = indexRepository;
+        this.siteRepository = siteRepository;
+        this.sites = sites;
+    }
 
     public Response startSearch(String query, String url) {
         if (query == null || query.trim().isEmpty()) {
