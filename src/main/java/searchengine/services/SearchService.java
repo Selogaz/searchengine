@@ -5,8 +5,8 @@ import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.LemmaFrequencyAnalyzer;
-import searchengine.config.SitesList;
 import searchengine.dto.Response;
+import searchengine.dto.search.SearchContext;
 import searchengine.dto.search.SearchErrorResponse;
 import searchengine.dto.search.SearchResponse;
 import searchengine.dto.search.SearchResult;
@@ -92,8 +92,10 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
         Map<Integer, Float> relevanceMap = calculateRelevanceScores(pageIds, sortedLemmas);
         float maxRelevance = Collections.max(relevanceMap.values(), Float::compare);
 
+        SearchContext context = new SearchContext(sortedLemmas, maxRelevance);
+
         return pageIds.stream()
-                .map(pageId -> createSearchResult(pageId, relevanceMap.get(pageId), maxRelevance, sortedLemmas))
+                .map(pageId -> createSearchResult(pageId, relevanceMap.get(pageId), context))
                 .toList();
     }
 
@@ -101,25 +103,25 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
         Map<Integer, Float> relevanceMap = new HashMap<>();
         for (Integer pageId : pageIds) {
             float relevance = sortedLemmas.keySet().stream()
-                    .map(lemma -> calculateLemmaRelevance(pageId, lemma, sortedLemmas.get(lemma)))
+                    .map(lemma -> calculateLemmaRelevance(pageId, sortedLemmas.get(lemma)))
                     .reduce(0.0f, Float::sum);
             relevanceMap.put(pageId, relevance);
         }
         return relevanceMap;
     }
 
-    private float calculateLemmaRelevance(Integer pageId, String lemma, Integer lemmaId) {
+    private float calculateLemmaRelevance(Integer pageId, Integer lemmaId) {
         return indexRepository.findByLemmaId(lemmaId).stream()
                 .filter(entry -> entry.getPage().getId().equals(pageId))
                 .map(IndexEntity::getRank)
                 .reduce(0.0f, Float::sum);
     }
 
-    private SearchResult createSearchResult(Integer pageId, float relevance, float maxRelevance, Map<String, Integer> sortedLemmas) {
+    private SearchResult createSearchResult(Integer pageId, float relevance, SearchContext context) {
         PageEntity page = pageRepository.findById(pageId).orElseThrow();
 
-        float normalizedRelevance = relevance / maxRelevance;
-        String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
+        float normalizedRelevance = relevance / context.getMaxRelevance();
+        String snippet = generateSnippet(page.getContent(), context.getSortedLemmas().keySet());
 
         return new SearchResult(
                 page.getSite().getUrl().substring(0,page.getSite().getUrl().length() - 1),
