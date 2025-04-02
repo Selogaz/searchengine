@@ -16,7 +16,7 @@ import searchengine.dto.Response;
 import searchengine.dto.indexing.ErrorResponse;
 import searchengine.dto.indexing.IndexingResponse;
 import searchengine.model.*;
-import searchengine.services.parser.SiteMap;
+import searchengine.dto.indexing.SiteMap;
 import searchengine.services.parser.SiteMapRecursiveAction;
 
 import java.io.IOException;

@@ -133,40 +133,6 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
         );
     }
 
-//    private List<SearchResult> calculateRelevance(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
-//        Map<Integer, Float> relevanceMap = new HashMap<>();
-//        float maxRelevance = 0;
-//
-//        for (Integer pageId : pageIds) {
-//            float relevance = 0;
-//            for (String lemma : sortedLemmas.keySet()) {
-//                relevance += indexRepository.findByLemmaId(sortedLemmas.get(lemma)).stream()
-//                        .filter(entry -> entry.getPage().getId().equals(pageId))
-//                        .map(IndexEntity::getRank)
-//                        .reduce(0.0f, Float::sum);
-//            }
-//            relevanceMap.put(pageId, relevance);
-//            maxRelevance = Math.max(maxRelevance, relevance);
-//        }
-//
-//        float finalMaxRelevance = maxRelevance;
-//        return pageIds.stream()
-//                .map(pageId -> {
-//                    PageEntity page = pageRepository.findById(pageId).orElseThrow();
-//                    float relevance = relevanceMap.get(pageId) / finalMaxRelevance;
-//                    String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
-//                    return new SearchResult(
-//                            page.getSite().getUrl().substring(0,page.getSite().getUrl().length() - 1),
-//                            page.getSite().getName(),
-//                            page.getPath(),
-//                            extractTitleFromContent(page.getContent()),
-//                            snippet,
-//                            relevance
-//                    );
-//                })
-//                .toList();
-//    }
-
     private String extractTitleFromContent(String content) {
         if (content == null || content.isEmpty()) {
             return "No Title";
@@ -226,7 +192,6 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
             siteLemmasEntities = lemmaRepository.findAll();
             pageCount = pageRepository.findAll().size();
         }
-
 
         double threshold = pageCount * 0.8;
         Map<String, Integer> lemmaFreqMap = new HashMap<>();
