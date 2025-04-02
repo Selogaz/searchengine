@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=dbuser

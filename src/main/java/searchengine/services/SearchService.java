@@ -4,7 +4,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import searchengine.LemmaFrequencyAnalyzer;
+import searchengine.dto.LemmaFrequencyAnalyzer;
 import searchengine.dto.Response;
 import searchengine.dto.search.SearchContext;
 import searchengine.dto.search.SearchErrorResponse;

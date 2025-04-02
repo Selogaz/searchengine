@@ -1,4 +1,4 @@
-package searchengine;
+package searchengine.dto;
 
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.english.EnglishLuceneMorphology;

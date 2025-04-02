@@ -10,12 +10,18 @@ indexing-settings:
   referrer: "http://www.google.com"
   timeout: 30000
   sites:
+    - url: https://sendel.ru/
+      name: Sendel.ru
+    - url: https://dimonvideo.ru/
+      name: Dimonvideo.ru
     - url: https://www.lenta.ru
       name: Лента.ру
     - url: https://www.skillbox.ru
       name: Skillbox
     - url: https://www.playback.ru
       name: PlayBack.Ru
+    - url: https://www.svetlovka.ru/
+      name: Svetlovka.ru
 
 
 server:
@@ -31,5 +37,5 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: create
+      ddl-auto: create-drop
       show-sql: true

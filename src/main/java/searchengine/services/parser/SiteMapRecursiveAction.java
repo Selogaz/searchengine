@@ -9,7 +9,7 @@ import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
-import searchengine.LemmaFrequencyAnalyzer;
+import searchengine.dto.LemmaFrequencyAnalyzer;
 import searchengine.config.IndexingConfig;
 import searchengine.dto.indexing.SiteMap;
 import searchengine.model.IndexEntity;

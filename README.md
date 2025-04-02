@@ -4,19 +4,18 @@
 ## ⚙️ Технологии
 - **Backend**: Spring Boot, [![Java](https://img.shields.io/badge/Java-17-red)](https://openjdk.org/), REST API, Hibernate, MySQL
 - **Frontend**: HTML, CSS, JavaScript
-- **Инструменты**: Docker, Maven, Thymeleaf
+- **Инструменты**: Maven, Thymeleaf
 
 ## Установка
 1. Клонируйте репозиторий:
 ```bash
 https://github.com/Selogaz/searchengine.git
 ```
-2. Запустите через Docker:
+2. В корневой директории проекта запустите через терминал:
 ```bash
-docker-compose up --build
+ java -jar target/SearchEngine-1.0-SNAPSHOT.jar  
 ```
-3.
-4.
+
 Для запуска приложения необходимо:
 - Создать MySQL базу данных search_engine
 - Установить JDK 17 для исключения конфликтов версий
