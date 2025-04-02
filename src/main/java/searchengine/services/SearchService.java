@@ -1,6 +1,5 @@
 package searchengine.services;
 
-import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,24 +52,6 @@ public class SearchService implements SearchRepository {
         return searchResponse;
     }
 
-//    private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
-//        Set<Integer> resultPages = new HashSet<>();
-//        for (String lemma : sortedLemmas.keySet()) {
-//            List<IndexEntity> entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
-//            if (resultPages.isEmpty()) {
-//                resultPages = entries.stream()
-//                        .map(indexEntry -> indexEntry.getPage().getId())
-//                        .collect(Collectors.toSet());
-//            } else {
-//                Set<Integer> currentPages = entries.stream()
-//                        .map(indexEntry -> indexEntry.getPage().getId())
-//                        .collect(Collectors.toSet());
-//                resultPages.retainAll(currentPages);
-//            }
-//            if (resultPages.isEmpty()) break;
-//        }
-//        return resultPages;
-//    }
 private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
     Set<Integer> resultPages = null;
 
@@ -131,8 +112,8 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
                     float relevance = relevanceMap.get(pageId) / finalMaxRelevance;
                     String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
                     return new SearchResult(
-                            sites.getSites().get(0).getUrl().substring(0,sites.getSites().get(0).getUrl().length() - 1),
-                            sites.getSites().get(0).getName(),
+                            page.getSite().getUrl().substring(0,page.getSite().getUrl().length() - 1),
+                            page.getSite().getName(),
                             page.getPath(),
                             extractTitleFromContent(page.getContent()),
                             snippet,
