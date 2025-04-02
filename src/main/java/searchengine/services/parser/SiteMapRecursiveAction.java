@@ -8,10 +8,10 @@ import org.jsoup.nodes.Document;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
-import searchengine.LemmaFrequencyAnalyzer;
+import searchengine.dto.LemmaFrequencyAnalyzer;
 import searchengine.config.IndexingConfig;
+import searchengine.dto.indexing.SiteMap;
 import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
@@ -70,7 +70,6 @@ public class SiteMapRecursiveAction extends RecursiveAction {
     @Override
     protected void compute() {
         if (isStopped.get()) {
-            //log.info("Задача остановлена для: {}", siteMap.getUrl());
             return;
         }
         linksPool.add(siteMap.getUrl());
@@ -98,14 +97,6 @@ public class SiteMapRecursiveAction extends RecursiveAction {
             }
         }
         invokeAll(taskList);
-
-//        for (SiteMapRecursiveAction task : taskList) {
-//            if (isStopped.get()) {
-//                task.cancel(true); // Отмена незавершенных задач
-//            } else {
-//                task.join();
-//            }
-//        }
     }
 
     public void stopRecursiveAction() {
@@ -151,23 +142,15 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         }
         String content = "";
         try {
-            content = doc.body().text();
+            //content = doc.body().text();
+            content = doc.html();
         } catch (Exception e) {
             log.warn("Ошибка при получении контекста страницы: {}", siteMap.getUrl());
         }
-
-        String title = "";
-        try {
-            title = doc.title();
-        } catch (Exception e) {
-            log.warn("Ошибка при получении заголовка страницы: {}", siteMap.getUrl());
-        }
-
         String path = siteMap.getUrl().substring(siteMap.getDomain().length());
         if (!path.endsWith("/")) {
             path = path + "/";
         }
-
         Integer statusCode = doc.connection().response().statusCode();
         if (statusCode >= 400) {
             log.warn("Page status code is 4xx or 5xx");
@@ -179,26 +162,11 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         page.setPath(path);
         page.setCode(statusCode);
         page.setContent(content);
-
         pageRepository.save(page);
         processPageContent(page);
-//        pageBuffer.add(page);
-//        synchronized (pageBuffer) {
-//            if (pageBuffer.size() >= 100) {
-//                pageRepository.saveAll(pageBuffer);
-//                log.info("100 страниц сохранены в БД");
-//                pageBuffer.forEach(this::processPageContent);
-//                log.info("100 страниц разделены на леммы и индексы");
-//                pageBuffer.clear();
-//
-//            }
-//        }
-
-
 //        log.info("Domain: {}", siteMap.getDomain());
 //        log.info("URL: {}", siteMap.getUrl());
 //        log.info("Path: {}", path);
-
     }
 
     @Transactional
@@ -207,7 +175,7 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
         Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
         updateLemmasAndIndices(page, lemmas);
-        log.info("индексы и леммы обновлены для страницы: {}", page.getId());
+        //log.info("индексы и леммы обновлены для страницы: {}", page.getId());
     }
 
     @Transactional
@@ -228,29 +196,5 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         indexRepository.saveAll(indices);
     }
 
-    @Transactional
-    private void updateLemmaFrequency(LemmaEntity lemma) {
-        lemma.setFrequency(lemma.getFrequency() + 1);
-        lemmaRepository.save(lemma);
-    }
-
-    @Transactional
-    private LemmaEntity createNewLemma(String lemmaText, SiteEntity site) {
-        LemmaEntity lemma = new LemmaEntity();
-        lemma.setLemma(lemmaText);
-        lemma.setSite(site);
-        lemma.setFrequency(1);
-        lemmaRepository.save(lemma);
-        return lemma;
-    }
-
-    @Transactional
-    private void createNewIndex(PageEntity page, Float rank, Integer lemmaId) {
-        IndexEntity index = new IndexEntity();
-        index.setPage(page);
-        index.setRank(rank);
-        index.setLemmaId(lemmaId);
-        indexRepository.save(index);
-    }
 }
 

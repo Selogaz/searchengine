@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import searchengine.LemmaFrequencyAnalyzer;
+import searchengine.dto.LemmaFrequencyAnalyzer;
 import searchengine.config.IndexingConfig;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
@@ -16,7 +16,7 @@ import searchengine.dto.Response;
 import searchengine.dto.indexing.ErrorResponse;
 import searchengine.dto.indexing.IndexingResponse;
 import searchengine.model.*;
-import searchengine.services.parser.SiteMap;
+import searchengine.dto.indexing.SiteMap;
 import searchengine.services.parser.SiteMapRecursiveAction;
 
 import java.io.IOException;
@@ -32,19 +32,14 @@ public class IndexingService {
 
     @Autowired
     private final IndexingConfig indexingConfig;
-
     @Autowired
     private final SiteRepository siteRepository;
-
     @Autowired
     private final PageRepository pageRepository;
-
     @Autowired
     private final IndexRepository indexRepository;
-
     @Autowired
     private final LemmaRepository lemmaRepository;
-
     @Autowired
     private final SitesList sites;
 
@@ -88,36 +83,39 @@ public class IndexingService {
         }
         List<Site> sitesList = sites.getSites();
         for (Site site : sitesList) {
-            Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
-            if (existingSite.isPresent()) {
-                pageRepository.deleteBySiteId(existingSite.get().getId());
-                siteRepository.delete(existingSite.get());
-            }
-            SiteEntity siteEntity = createSiteEntity(site);
-            siteRepository.save(siteEntity);
-            siteRepository.flush();
+            processSite(site);
+        }
+    }
 
-            try {
-                forkJoinPool.submit(() -> {
-                    indexPage(siteEntity.getId());
-                }).join();
-                if (isStopped.get()) {
-                    siteEntity.setStatus(Status.FAILED);
-                    return;
-                }
-                siteEntity.setStatus(Status.INDEXED);
-                siteEntity.setStatusTime(Date.from(Instant.now()));
-            } catch (Exception e) {
+    private void processSite(Site site) {
+        Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
+        if (existingSite.isPresent()) {
+            pageRepository.deleteBySiteId(existingSite.get().getId());
+            siteRepository.delete(existingSite.get());
+        }
+        SiteEntity siteEntity = createSiteEntity(site);
+        siteRepository.save(siteEntity);
+        siteRepository.flush();
+        try {
+            forkJoinPool.submit(() -> {
+                indexPage(siteEntity.getId());
+            }).join();
+            if (isStopped.get()) {
                 siteEntity.setStatus(Status.FAILED);
-                siteEntity.setStatusTime(Date.from(Instant.now()));
-                siteEntity.setLastError(e.getMessage());
                 return;
-            } finally {
-                siteRepository.save(siteEntity);
             }
-            if (siteEntity.getStatus().equals(Status.INDEXED) && !isStopped.get()) {
-                log.info("Индексация завершена для сайта: {}", site.getUrl());
-            }
+            siteEntity.setStatus(Status.INDEXED);
+            siteEntity.setStatusTime(Date.from(Instant.now()));
+        } catch (Exception e) {
+            siteEntity.setStatus(Status.FAILED);
+            siteEntity.setStatusTime(Date.from(Instant.now()));
+            siteEntity.setLastError(e.getMessage());
+            return;
+        } finally {
+            siteRepository.save(siteEntity);
+        }
+        if (siteEntity.getStatus().equals(Status.INDEXED) && !isStopped.get()) {
+            log.info("Индексация завершена для сайта: {}", site.getUrl());
         }
     }
 
@@ -156,7 +154,6 @@ public class IndexingService {
 
         } catch (Exception e) {
             if (!isStopped.get()) {
-                //log.error("Ошибка при обходе страницы: {}", path, e);
                 log.error("Ошибка при обходе страницы: ", e);
             }
         }
@@ -336,11 +333,9 @@ public class IndexingService {
             response = errorResponse;
             return response;
         }
-
         updateSiteStatuses(Status.INDEXING,Status.FAILED, INDEXING_STOPPED_BY_USER);
         isStopped.set(true);
         stopForkJoinPool();
-
         if (executor != null) {
             executor.shutdownNow();
             log.info(executor.isShutdown() ? "ThreadPoolExecutor успешно остановлен." : "ThreadPoolExecutor не был остановлен.");

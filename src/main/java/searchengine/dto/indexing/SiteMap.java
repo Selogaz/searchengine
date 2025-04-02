@@ -1,4 +1,4 @@
-package searchengine.services.parser;
+package searchengine.dto.indexing;
 
 
 import lombok.Getter;
@@ -7,8 +7,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
-
-
 
 @Getter
 public class SiteMap {
