@@ -39,7 +39,10 @@ public class SearchService implements SearchRepository {
 
     public Response startSearch(String query, String url) {
         if (query == null || query.trim().isEmpty()) {
-            return new SearchErrorResponse("Задан пустой поисковый запрос");
+            SearchErrorResponse searchErrorResponse = new SearchErrorResponse("Задан пустой поисковый запрос");
+            searchErrorResponse.setResult(false);
+            return searchErrorResponse;
+            //return new SearchErrorResponse("Задан пустой поисковый запрос");
         }
         List<SearchResult> searchResults = mainSearch(query, url);
         SearchResponse searchResponse = new SearchResponse();

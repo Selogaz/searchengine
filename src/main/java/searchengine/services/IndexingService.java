@@ -32,19 +32,14 @@ public class IndexingService {
 
     @Autowired
     private final IndexingConfig indexingConfig;
-
     @Autowired
     private final SiteRepository siteRepository;
-
     @Autowired
     private final PageRepository pageRepository;
-
     @Autowired
     private final IndexRepository indexRepository;
-
     @Autowired
     private final LemmaRepository lemmaRepository;
-
     @Autowired
     private final SitesList sites;
 
@@ -338,11 +333,9 @@ public class IndexingService {
             response = errorResponse;
             return response;
         }
-
         updateSiteStatuses(Status.INDEXING,Status.FAILED, INDEXING_STOPPED_BY_USER);
         isStopped.set(true);
         stopForkJoinPool();
-
         if (executor != null) {
             executor.shutdownNow();
             log.info(executor.isShutdown() ? "ThreadPoolExecutor успешно остановлен." : "ThreadPoolExecutor не был остановлен.");
