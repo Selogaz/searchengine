@@ -22,9 +22,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
-//@RequiredArgsConstructor
 public class SearchService implements SearchRepository {
-    private final SitesList sites;
     private final LemmaRepository lemmaRepository;
     private final PageRepository pageRepository;
     private final IndexRepository indexRepository;
@@ -32,12 +30,11 @@ public class SearchService implements SearchRepository {
 
     @Autowired
     public SearchService(LemmaRepository lemmaRepository, PageRepository pageRepository, IndexRepository indexRepository,
-                         SiteRepository siteRepository, SitesList sites) {
+                         SiteRepository siteRepository) {
         this.lemmaRepository = lemmaRepository;
         this.pageRepository = pageRepository;
         this.indexRepository = indexRepository;
         this.siteRepository = siteRepository;
-        this.sites = sites;
     }
 
     public Response startSearch(String query, String url) {
@@ -54,7 +51,6 @@ public class SearchService implements SearchRepository {
 
 private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
     Set<Integer> resultPages = null;
-
     for (String lemma : sortedLemmas.keySet()) {
         List<IndexEntity> entries;
         if (url == null) {
@@ -90,38 +86,81 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
     }
 
     private List<SearchResult> calculateRelevance(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
-        Map<Integer, Float> relevanceMap = new HashMap<>();
-        float maxRelevance = 0;
+        Map<Integer, Float> relevanceMap = calculateRelevanceScores(pageIds, sortedLemmas);
+        float maxRelevance = Collections.max(relevanceMap.values(), Float::compare);
 
-        for (Integer pageId : pageIds) {
-            float relevance = 0;
-            for (String lemma : sortedLemmas.keySet()) {
-                relevance += indexRepository.findByLemmaId(sortedLemmas.get(lemma)).stream()
-                        .filter(entry -> entry.getPage().getId().equals(pageId))
-                        .map(IndexEntity::getRank)
-                        .reduce(0.0f, Float::sum);
-            }
-            relevanceMap.put(pageId, relevance);
-            maxRelevance = Math.max(maxRelevance, relevance);
-        }
-
-        float finalMaxRelevance = maxRelevance;
         return pageIds.stream()
-                .map(pageId -> {
-                    PageEntity page = pageRepository.findById(pageId).orElseThrow();
-                    float relevance = relevanceMap.get(pageId) / finalMaxRelevance;
-                    String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
-                    return new SearchResult(
-                            page.getSite().getUrl().substring(0,page.getSite().getUrl().length() - 1),
-                            page.getSite().getName(),
-                            page.getPath(),
-                            extractTitleFromContent(page.getContent()),
-                            snippet,
-                            relevance
-                    );
-                })
+                .map(pageId -> createSearchResult(pageId, relevanceMap.get(pageId), maxRelevance, sortedLemmas))
                 .toList();
     }
+
+    private Map<Integer, Float> calculateRelevanceScores(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
+        Map<Integer, Float> relevanceMap = new HashMap<>();
+        for (Integer pageId : pageIds) {
+            float relevance = sortedLemmas.keySet().stream()
+                    .map(lemma -> calculateLemmaRelevance(pageId, lemma, sortedLemmas.get(lemma)))
+                    .reduce(0.0f, Float::sum);
+            relevanceMap.put(pageId, relevance);
+        }
+        return relevanceMap;
+    }
+
+    private float calculateLemmaRelevance(Integer pageId, String lemma, Integer lemmaId) {
+        return indexRepository.findByLemmaId(lemmaId).stream()
+                .filter(entry -> entry.getPage().getId().equals(pageId))
+                .map(IndexEntity::getRank)
+                .reduce(0.0f, Float::sum);
+    }
+
+    private SearchResult createSearchResult(Integer pageId, float relevance, float maxRelevance, Map<String, Integer> sortedLemmas) {
+        PageEntity page = pageRepository.findById(pageId).orElseThrow();
+
+        float normalizedRelevance = relevance / maxRelevance;
+        String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
+
+        return new SearchResult(
+                page.getSite().getUrl().substring(0,page.getSite().getUrl().length() - 1),
+                page.getSite().getName(),
+                page.getPath(),
+                extractTitleFromContent(page.getContent()),
+                snippet,
+                normalizedRelevance
+        );
+    }
+
+//    private List<SearchResult> calculateRelevance(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
+//        Map<Integer, Float> relevanceMap = new HashMap<>();
+//        float maxRelevance = 0;
+//
+//        for (Integer pageId : pageIds) {
+//            float relevance = 0;
+//            for (String lemma : sortedLemmas.keySet()) {
+//                relevance += indexRepository.findByLemmaId(sortedLemmas.get(lemma)).stream()
+//                        .filter(entry -> entry.getPage().getId().equals(pageId))
+//                        .map(IndexEntity::getRank)
+//                        .reduce(0.0f, Float::sum);
+//            }
+//            relevanceMap.put(pageId, relevance);
+//            maxRelevance = Math.max(maxRelevance, relevance);
+//        }
+//
+//        float finalMaxRelevance = maxRelevance;
+//        return pageIds.stream()
+//                .map(pageId -> {
+//                    PageEntity page = pageRepository.findById(pageId).orElseThrow();
+//                    float relevance = relevanceMap.get(pageId) / finalMaxRelevance;
+//                    String snippet = generateSnippet(page.getContent(), sortedLemmas.keySet());
+//                    return new SearchResult(
+//                            page.getSite().getUrl().substring(0,page.getSite().getUrl().length() - 1),
+//                            page.getSite().getName(),
+//                            page.getPath(),
+//                            extractTitleFromContent(page.getContent()),
+//                            snippet,
+//                            relevance
+//                    );
+//                })
+//                .toList();
+//    }
 
     private String extractTitleFromContent(String content) {
         if (content == null || content.isEmpty()) {
@@ -172,8 +211,6 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
 
     private Map<String, Integer> excludeLemmas(Map<String, Integer> queryLemmas, String url) {
         Optional<SiteEntity> siteEntity = siteRepository.findByUrl(url);
-//        List<LemmaEntity> siteLemmasEntities = lemmaRepository.findAllBySiteId(siteEntity.get().getId());
-//        int pageCount = pageRepository.findAllBySiteId(1).size();
         List<LemmaEntity> siteLemmasEntities;
         int pageCount;
         if (siteEntity.isPresent()) {
