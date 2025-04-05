@@ -42,7 +42,6 @@ public class SearchService implements SearchRepository {
             SearchErrorResponse searchErrorResponse = new SearchErrorResponse("Задан пустой поисковый запрос");
             searchErrorResponse.setResult(false);
             return searchErrorResponse;
-            //return new SearchErrorResponse("Задан пустой поисковый запрос");
         }
         List<SearchResult> searchResults = mainSearch(query, url);
         SearchResponse searchResponse = new SearchResponse();
@@ -74,7 +73,6 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
 
         if (resultPages.isEmpty()) break;
     }
-
     return resultPages != null ? resultPages : Collections.emptySet();
 }
 
@@ -84,14 +82,14 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
         Set<Integer> resultPages = findPages(sortedLemmas, url);
         List<SearchResult> relevanceResults = calculateRelevance(resultPages, sortedLemmas);
-        System.out.println(relevanceResults);
-        return relevanceResults;
+        return relevanceResults.stream()
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private List<SearchResult> calculateRelevance(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
         Map<Integer, Float> relevanceMap = calculateRelevanceScores(pageIds, sortedLemmas);
         float maxRelevance = Collections.max(relevanceMap.values(), Float::compare);
-
         SearchContext context = new SearchContext(sortedLemmas, maxRelevance);
 
         return pageIds.stream()
@@ -118,8 +116,12 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
     }
 
     private SearchResult createSearchResult(Integer pageId, float relevance, SearchContext context) {
-        PageEntity page = pageRepository.findById(pageId).orElseThrow();
+        Optional<PageEntity> optionalPage = pageRepository.findById(pageId);
+        if (optionalPage.isEmpty()) {
+            return null;
+        }
 
+        PageEntity page = optionalPage.get();
         float normalizedRelevance = relevance / context.getMaxRelevance();
         String snippet = generateSnippet(page.getContent(), context.getSortedLemmas().keySet());
 
