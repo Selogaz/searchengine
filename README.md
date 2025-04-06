@@ -11,9 +11,9 @@
   - Скачайте MySQL
     Перейдите на официальный сайт MySQL: https://dev.mysql.com/downloads/ .
     Выберите подходящую версию MySQL для вашей операционной системы:
-    Для Windows: скачайте MySQL Installer.
-    Для macOS: используйте Homebrew (`brew install mysql`) или скачайте DMG-файл.
-    Для Linux: следуйте инструкциям для вашей дистрибуции (например, `sudo apt install mysql-server` для Ubuntu).
+    - Для Windows: скачайте MySQL Installer.
+    - Для macOS: используйте Homebrew (`brew install mysql`) или скачайте DMG-файл.
+    - Для Linux: следуйте инструкциям для вашей дистрибуции (например, `sudo apt install mysql-server` для Ubuntu).
 
   - Установите MySQL
     Запустите установщик и следуйте инструкциям мастера установки.
