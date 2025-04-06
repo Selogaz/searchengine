@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class SearchService implements SearchRepository {
     private final LemmaRepository lemmaRepository;
@@ -42,7 +44,6 @@ public class SearchService implements SearchRepository {
             SearchErrorResponse searchErrorResponse = new SearchErrorResponse("Задан пустой поисковый запрос");
             searchErrorResponse.setResult(false);
             return searchErrorResponse;
-            //return new SearchErrorResponse("Задан пустой поисковый запрос");
         }
         List<SearchResult> searchResults = mainSearch(query, url);
         SearchResponse searchResponse = new SearchResponse();
@@ -52,31 +53,43 @@ public class SearchService implements SearchRepository {
         return searchResponse;
     }
 
-private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
-    Set<Integer> resultPages = null;
-    for (String lemma : sortedLemmas.keySet()) {
-        List<IndexEntity> entries;
-        if (url == null) {
-            entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
-        } else {
-            entries = indexRepository.findByLemmaIdAndSiteUrl(sortedLemmas.get(lemma), url);
+    private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
+        Set<Integer> resultPages = null;
+        for (String lemma : sortedLemmas.keySet()) {
+            List<IndexEntity> entries;
+            if (url == null) {
+                entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
+            } else {
+                entries = indexRepository.findByLemmaIdAndSiteUrl(sortedLemmas.get(lemma), url);
+//                entries = findEntriesManually(sortedLemmas.get(lemma), url);
+            }
+
+            Set<Integer> currentPages = entries.stream()
+                    .map(indexEntry -> indexEntry.getPage().getId())
+                    .collect(Collectors.toSet());
+
+            if (resultPages == null) {
+                resultPages = new HashSet<>(currentPages);
+            } else {
+                resultPages.retainAll(currentPages);
+            }
+
+            if (resultPages.isEmpty()) break;
         }
-
-        Set<Integer> currentPages = entries.stream()
-                .map(indexEntry -> indexEntry.getPage().getId())
-                .collect(Collectors.toSet());
-
-        if (resultPages == null) {
-            resultPages = new HashSet<>(currentPages);
-        } else {
-            resultPages.retainAll(currentPages);
-        }
-
-        if (resultPages.isEmpty()) break;
+        return resultPages != null ? resultPages : Collections.emptySet();
     }
 
-    return resultPages != null ? resultPages : Collections.emptySet();
-}
+//    private List<IndexEntity> findEntriesManually(Integer lemmaId, String url) {
+//        List<IndexEntity> allEntries = indexRepository.findByLemmaId(lemmaId);
+//        allEntries.forEach(entry -> System.out.println(entry.getPage().getSite().getUrl()));
+//        if (url != null) {
+//            return allEntries.stream()
+//                    .filter(entry -> entry.getPage().getSite().getUrl().equalsIgnoreCase(url))
+//                    .toList();
+//        }
+//
+//        return allEntries;
+//    }
 
     private List<SearchResult> mainSearch(String query, String url) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
@@ -84,14 +97,17 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
         Map<String, Integer> sortedLemmas = sortLemmas(excludedLemmas);
         Set<Integer> resultPages = findPages(sortedLemmas, url);
         List<SearchResult> relevanceResults = calculateRelevance(resultPages, sortedLemmas);
-        System.out.println(relevanceResults);
-        return relevanceResults;
+        return relevanceResults.stream()
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private List<SearchResult> calculateRelevance(Set<Integer> pageIds, Map<String, Integer> sortedLemmas) {
         Map<Integer, Float> relevanceMap = calculateRelevanceScores(pageIds, sortedLemmas);
+        if (relevanceMap.isEmpty()) {
+            return Collections.emptyList();
+        }
         float maxRelevance = Collections.max(relevanceMap.values(), Float::compare);
-
         SearchContext context = new SearchContext(sortedLemmas, maxRelevance);
 
         return pageIds.stream()
@@ -118,8 +134,12 @@ private Set<Integer> findPages(Map<String, Integer> sortedLemmas, String url) {
     }
 
     private SearchResult createSearchResult(Integer pageId, float relevance, SearchContext context) {
-        PageEntity page = pageRepository.findById(pageId).orElseThrow();
+        Optional<PageEntity> optionalPage = pageRepository.findById(pageId);
+        if (optionalPage.isEmpty()) {
+            return null;
+        }
 
+        PageEntity page = optionalPage.get();
         float normalizedRelevance = relevance / context.getMaxRelevance();
         String snippet = generateSnippet(page.getContent(), context.getSortedLemmas().keySet());
 

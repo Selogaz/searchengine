@@ -66,9 +66,10 @@ public class IndexingService {
             } else {
                 log.info("Запущена индексация");
                 forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
-                executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(3);
-                executor.setMaximumPoolSize(Runtime.getRuntime().availableProcessors());
-                executor.execute(this::indexSite);
+//                executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(sites.getSites().size());
+//                executor.setMaximumPoolSize(Runtime.getRuntime().availableProcessors());
+                //executor.execute(this::indexSite);
+                indexSite();
                 IndexingResponse okResponse = new IndexingResponse();
                 okResponse.setResult(true);
                 response = okResponse;
@@ -82,40 +83,52 @@ public class IndexingService {
             return;
         }
         List<Site> sitesList = sites.getSites();
-        for (Site site : sitesList) {
-            processSite(site);
+        for (int i = 0; i < sitesList.size();i++) {
+            int finalI = i;
+            new Thread(() -> processSite(sitesList.get(finalI))).start();
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         }
+//        for (Site site : sitesList) {
+//            executor.execute(() -> processSite(site));
+//        }
     }
 
     private void processSite(Site site) {
-        Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
-        if (existingSite.isPresent()) {
-            pageRepository.deleteBySiteId(existingSite.get().getId());
-            siteRepository.delete(existingSite.get());
-        }
-        SiteEntity siteEntity = createSiteEntity(site);
-        siteRepository.save(siteEntity);
-        siteRepository.flush();
-        try {
-            forkJoinPool.submit(() -> {
-                indexPage(siteEntity.getId());
-            }).join();
-            if (isStopped.get()) {
-                siteEntity.setStatus(Status.FAILED);
-                return;
+        synchronized (site.getUrl().intern()) {
+            Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
+            if (existingSite.isPresent()) {
+                pageRepository.deleteBySiteId(existingSite.get().getId());
+                siteRepository.delete(existingSite.get());
             }
-            siteEntity.setStatus(Status.INDEXED);
-            siteEntity.setStatusTime(Date.from(Instant.now()));
-        } catch (Exception e) {
-            siteEntity.setStatus(Status.FAILED);
-            siteEntity.setStatusTime(Date.from(Instant.now()));
-            siteEntity.setLastError(e.getMessage());
-            return;
-        } finally {
+            SiteEntity siteEntity = createSiteEntity(site);
             siteRepository.save(siteEntity);
-        }
-        if (siteEntity.getStatus().equals(Status.INDEXED) && !isStopped.get()) {
-            log.info("Индексация завершена для сайта: {}", site.getUrl());
+            siteRepository.flush();
+            try {
+                forkJoinPool.submit(() -> {
+                    indexPage(siteEntity.getId());
+                }).join();
+                if (isStopped.get()) {
+                    siteEntity.setStatus(Status.FAILED);
+                    return;
+                }
+                siteEntity.setStatus(Status.INDEXED);
+                siteEntity.setStatusTime(Date.from(Instant.now()));
+            } catch (Exception e) {
+                siteEntity.setStatus(Status.FAILED);
+                siteEntity.setStatusTime(Date.from(Instant.now()));
+                siteEntity.setLastError(e.getMessage());
+                return;
+            } finally {
+                siteRepository.save(siteEntity);
+            }
+            if (siteEntity.getStatus().equals(Status.INDEXED) && !isStopped.get()) {
+                log.info("Индексация завершена для сайта: {}", site.getUrl());
+            }
         }
     }
 

@@ -18,6 +18,6 @@ public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
     @Query("SELECT i FROM IndexEntity i " +
             "JOIN i.page p " +
             "JOIN p.site s " +
-            "WHERE i.lemmaId = :lemmaId AND s.url = :url")
+            "WHERE i.lemmaId = :lemmaId AND LOWER(s.url) = LOWER(:url)")
     List<IndexEntity> findByLemmaIdAndSiteUrl(@Param("lemmaId") Integer lemmaId, @Param("url") String url);
 }
