@@ -20,5 +20,4 @@ public interface PageRepository extends JpaRepository<PageEntity, Integer> {
 
     List<PageEntity> findAllBySiteId(Integer id);
 
-    //Optional<PageEntity> findByUrl(String url);
 }
