@@ -37,10 +37,13 @@ mysql -u dbuser -p
 ```bash
 git clone https://github.com/Selogaz/searchengine.git
 ```
-
-7. В корневой директории проекта запустите через терминал:
+7. В корневой директории проекта соберите проект с помощью Maven:
+```bash
+mvn clean package -DskipTests
+```
+8.  Запустите:
 ```bash
  java -jar target/SearchEngine-1.0-SNAPSHOT.jar  
 ```
-8. Программа начнет работать по адресу: http://localhost:8081/
+9. Программа начнет работать по адресу: http://localhost:8081/
 
