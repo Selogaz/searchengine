@@ -1,8 +1,8 @@
 # FriendlySearch
-**Описание**: Перед вами Spring Boot приложение, работающее с локально установленной базой данных MySQL, имеющее простой веб-интерфейс и API, через который им можно управлять и получать результаты поисковой выдачи по запросу.
+Перед вами Spring Boot приложение, работающее с локально установленной базой данных MySQL, имеющее простой веб-интерфейс и API, через который им можно управлять и получать результаты поисковой выдачи по запросу.
 
 ## ⚙️ Технологии
-- **Backend**: Spring Boot, [![Java](https://img.shields.io/badge/Java-17-red)](https://openjdk.org/), REST API, Hibernate, MySQL
+- **Backend**: Spring Boot, Java 17, REST API, Hibernate, MySQL
 - **Frontend**: HTML, CSS, JavaScript
 - **Инструменты**: Maven, Thymeleaf
 
