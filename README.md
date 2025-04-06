@@ -24,17 +24,23 @@ create database search_engine
 CREATE USER 'dbuser'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON search_engine.* TO 'dbuser'@'localhost';
 FLUSH PRIVILEGES;
+EXIT;
 ```
+```sql
+mysql -u dbuser -p
+```
+После этого введите пароль `password`;
 
-4. Скачать и установить jdk-17: https://www.oracle.com/java/technologies/downloads/#java17?er=221886&spm=a2ty_o01.29997173.0.0.5273c9219wJrqU
-5. Клонируйте репозиторий:
+4. Скачайте и установить jdk-17: https://www.oracle.com/java/technologies/downloads/#java17?er=221886&spm=a2ty_o01.29997173.0.0.5273c9219wJrqU
+5. Скачайте и установите git: https://git-scm.com/downloads
+6. Клонируйте репозиторий:
 ```bash
-https://github.com/Selogaz/searchengine.git
+git clone https://github.com/Selogaz/searchengine.git
 ```
 
-6. В корневой директории проекта запустите через терминал:
+7. В корневой директории проекта запустите через терминал:
 ```bash
  java -jar target/SearchEngine-1.0-SNAPSHOT.jar  
 ```
-7. Программа начнет работать по адресу: `http://localhost:8081/`
+8. Программа начнет работать по адресу: http://localhost:8081/
 
