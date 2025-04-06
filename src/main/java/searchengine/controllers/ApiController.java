@@ -1,26 +1,25 @@
 package searchengine.controllers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.*;
-import searchengine.dto.ApiError;
 import searchengine.dto.Response;
-import searchengine.dto.indexing.ErrorResponse;
-import searchengine.dto.indexing.IndexingResponse;
 import searchengine.dto.search.SearchErrorResponse;
-import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexingService;
 import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
 
-import java.nio.file.AccessDeniedException;
+
 import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api")
 public class ApiController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ApiController.class);
 
     private final StatisticsService statisticsService;
     private final IndexingService indexingService;
@@ -39,53 +38,46 @@ public class ApiController {
 
     @GetMapping("/startIndexing")
     public ResponseEntity<Response> startIndexing() {
-        return ResponseEntity.ok(indexingService.startFullIndexing());
+        return errorHandler(indexingService.startFullIndexing());
     }
 
     @GetMapping("/stopIndexing")
     public ResponseEntity<Response> stopIndexing() {
-        return ResponseEntity.ok(indexingService.stopIndexing());
+        return errorHandler(indexingService.stopIndexing());
     }
 
     @PostMapping("/indexPage")
     public ResponseEntity<?> handleIndexPage(@RequestParam String url) {
-        return ResponseEntity.ok(indexingService.addOrUpdatePage(url));
+        return errorHandler(indexingService.addOrUpdatePage(url));
     }
 
-//    @GetMapping("/search")
-//    public ResponseEntity<ApiError> search(@RequestParam String query, @RequestParam(required = false) String site) {
-//        try {
-//            Object searchResult = searchService.startSearch(query, site);
-//            return ResponseEntity.ok(new ApiError(true));
-//        } catch (IllegalArgumentException ex) {
-//            throw new IllegalArgumentException("Некорректные параметры запроса: " + ex.getMessage());
-//        } catch (ResourceNotFoundException ex) {
-//            throw new ResourceNotFoundException("Указанная страница не найдена");
-//        } catch (Exception ex) {
-//            throw new RuntimeException("Произошла ошибка при выполнении поиска", ex);
-//        }
-//    }
     @GetMapping("/search")
-    public ResponseEntity<Response> search(@RequestParam String query, @RequestParam String site) {
-        try {
-            return ResponseEntity.ok(searchService.startSearch(query, site));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(new SearchErrorResponse("Указанная страница не найдена"));
-        } catch (SecurityException ex) {
-            // Ошибка авторизации (401)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new SearchErrorResponse(ex.getMessage()));
-        } catch (NoSuchElementException ex) {
-            // Ресурс не найден (404)
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new SearchErrorResponse(ex.getMessage()));
-        } catch (Exception ex) {
-            // Внутренняя ошибка сервера (500)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new SearchErrorResponse("Произошла внутренняя ошибка сервера"));
-        }
+    public ResponseEntity<Response> search(@RequestParam String query, @RequestParam(required = false) String site) {
+        logger.info("Запуск поиска...");
+        return errorHandler(searchService.startSearch(query, site));
     }
 
-    private ResponseEntity<Response> createErrorResponse(String errorMessage, int statusCode) {
-        ErrorResponse errorResponse = new ErrorResponse(errorMessage);
-        errorResponse.setResult(false);
-        return ResponseEntity.status(statusCode).body(errorResponse);
+    private ResponseEntity<Response> errorHandler(Response response) {
+        final String DEFAULT_ERROR_MESSAGE = "Указанная страница не найдена";
+
+        try {
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            //400
+            logger.error("Bad Request", ex);
+            return ResponseEntity.badRequest().body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+        } catch (SecurityException ex) {
+            // 401
+            logger.error("Unauthorized", ex);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+        } catch (NoSuchElementException ex) {
+            // 404
+            logger.error("Page not found", ex);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+        } catch (Exception ex) {
+            // 500
+            logger.error("Internal server error", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+        }
     }
 }

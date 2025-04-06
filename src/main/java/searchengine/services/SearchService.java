@@ -79,17 +79,17 @@ public class SearchService implements SearchRepository {
         return resultPages != null ? resultPages : Collections.emptySet();
     }
 
-    private List<IndexEntity> findEntriesManually(Integer lemmaId, String url) {
-        List<IndexEntity> allEntries = indexRepository.findByLemmaId(lemmaId);
-        allEntries.forEach(entry -> System.out.println(entry.getPage().getSite().getUrl()));
-        if (url != null) {
-            return allEntries.stream()
-                    .filter(entry -> entry.getPage().getSite().getUrl().equalsIgnoreCase(url))
-                    .toList();
-        }
-
-        return allEntries;
-    }
+//    private List<IndexEntity> findEntriesManually(Integer lemmaId, String url) {
+//        List<IndexEntity> allEntries = indexRepository.findByLemmaId(lemmaId);
+//        allEntries.forEach(entry -> System.out.println(entry.getPage().getSite().getUrl()));
+//        if (url != null) {
+//            return allEntries.stream()
+//                    .filter(entry -> entry.getPage().getSite().getUrl().equalsIgnoreCase(url))
+//                    .toList();
+//        }
+//
+//        return allEntries;
+//    }
 
     private List<SearchResult> mainSearch(String query, String url) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
