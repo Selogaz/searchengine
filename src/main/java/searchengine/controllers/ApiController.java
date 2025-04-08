@@ -10,7 +10,7 @@ import searchengine.dto.search.SearchErrorResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexingService;
 import searchengine.services.SearchService;
-import searchengine.services.StatisticsService;
+import searchengine.repository.StatisticsService;
 
 
 import java.util.NoSuchElementException;

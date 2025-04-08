@@ -5,7 +5,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.dto.LemmaFrequencyAnalyzer;
@@ -17,6 +16,10 @@ import searchengine.dto.indexing.ErrorResponse;
 import searchengine.dto.indexing.IndexingResponse;
 import searchengine.model.*;
 import searchengine.dto.indexing.SiteMap;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
+import searchengine.repository.PageRepository;
+import searchengine.repository.SiteRepository;
 import searchengine.services.parser.SiteMapRecursiveAction;
 
 import java.io.IOException;
@@ -30,17 +33,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class IndexingService {
     private static final Logger log = LoggerFactory.getLogger(IndexingService.class);
 
-    @Autowired
     private final IndexingConfig indexingConfig;
-    @Autowired
     private final SiteRepository siteRepository;
-    @Autowired
     private final PageRepository pageRepository;
-    @Autowired
     private final IndexRepository indexRepository;
-    @Autowired
     private final LemmaRepository lemmaRepository;
-    @Autowired
     private final SitesList sites;
 
     private ForkJoinPool forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
@@ -66,9 +63,6 @@ public class IndexingService {
             } else {
                 log.info("Запущена индексация");
                 forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
-//                executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(sites.getSites().size());
-//                executor.setMaximumPoolSize(Runtime.getRuntime().availableProcessors());
-                //executor.execute(this::indexSite);
                 indexSite();
                 IndexingResponse okResponse = new IndexingResponse();
                 okResponse.setResult(true);
@@ -93,9 +87,6 @@ public class IndexingService {
             }
 
         }
-//        for (Site site : sitesList) {
-//            executor.execute(() -> processSite(site));
-//        }
     }
 
     private void processSite(Site site) {
