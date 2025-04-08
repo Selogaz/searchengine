@@ -73,7 +73,6 @@ public class IndexingService {
 
     public void indexSite() {
         if (isStopped.get()) {
-
             return;
         }
         List<Site> sitesList = sites.getSites();
@@ -137,7 +136,7 @@ public class IndexingService {
     }
 
     @Transactional
-    private void indexPage(Integer siteId) {
+    public void indexPage(Integer siteId) {
         SiteEntity attachedSite = siteRepository.findById(siteId)
                 .orElseThrow(() -> new RuntimeException("Сайт с ID " + siteId + " не найден"));
 
@@ -215,7 +214,7 @@ public class IndexingService {
     }
 
     @Transactional
-    protected void processPageContent(PageEntity page) {
+    public void processPageContent(PageEntity page) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
         String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
         Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
@@ -223,7 +222,7 @@ public class IndexingService {
     }
 
     @Transactional
-    protected void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
+    public void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
         lemmas.forEach((lemmaText, rank) -> {
             LemmaEntity lemma = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite())
                     .orElseGet(() -> createNewLemma(lemmaText, page.getSite()));
@@ -287,7 +286,7 @@ public class IndexingService {
     }
 
     @Transactional
-    protected void deletePageData(PageEntity page) {
+    public void deletePageData(PageEntity page) {
         List<IndexEntity> indexes = indexRepository.findByPage(page);
         for (IndexEntity index : indexes) {
             Integer lemmaId = index.getLemmaId();
@@ -353,7 +352,7 @@ public class IndexingService {
     }
 
     @Transactional
-    private void updateSiteStatuses(Status from,Status to, String note) {
+    public void updateSiteStatuses(Status from,Status to, String note) {
         List<SiteEntity> indexingSites = siteRepository.findByStatus(from);
         for (SiteEntity site : indexingSites) {
             site.setStatus(to);
