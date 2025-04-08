@@ -62,7 +62,6 @@ public class SearchService implements SearchRepository {
                 entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
             } else {
                 entries = indexRepository.findByLemmaIdAndSiteUrl(sortedLemmas.get(lemma), url);
-//                entries = findEntriesManually(sortedLemmas.get(lemma), url);
             }
 
             Set<Integer> currentPages = entries.stream()

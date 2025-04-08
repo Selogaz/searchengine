@@ -27,25 +27,14 @@ import java.util.Random;
 public class StatisticsServiceImpl implements StatisticsService {
     private static final Logger log = LoggerFactory.getLogger(StatisticsServiceImpl.class);
 
-
-    private final Random random = new Random();
     private final SitesList sites;
 
-    @Autowired
     private final PageRepository pageRepository;
-    @Autowired
     private final LemmaRepository lemmaRepository;
-    //@Autowired
     private final SiteRepository siteRepository;
 
     @Override
     public StatisticsResponse getStatistics() {
-//        String[] statuses = { "INDEXED", "FAILED", "INDEXING" };
-//        String[] errors = {
-//                "Ошибка индексации: главная страница сайта не доступна",
-//                "Ошибка индексации: сайт не доступен",
-//                ""
-//        };
 
         TotalStatistics total = new TotalStatistics();
         total.setSites(sites.getSites().size());
@@ -61,9 +50,7 @@ public class StatisticsServiceImpl implements StatisticsService {
             item.setUrl(site.getUrl());
             item.setStatus("В очереди на индексацию");
             item.setError("Ошибок нет");
-//            int pages = random.nextInt(1_000);
-//            int lemmas = pages * random.nextInt(1_000);
-//            item.setStatus(statuses[i % 3]);
+
             Optional<SiteEntity> siteEntityOptional = siteRepository.findByName(site.getName());
             if (siteEntityOptional.isPresent()) {
                 SiteEntity siteEntity = siteEntityOptional.get();
@@ -75,11 +62,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 item.setPages(pages);
                 item.setLemmas(lemmas);
             }
-//            item.setError(errors[i % 3]);
-//            item.setStatusTime(System.currentTimeMillis() -
-//                    (random.nextInt(10_000)));
-//            total.setPages(total.getPages() + pages);
-//            total.setLemmas(total.getLemmas() + lemmas);
+
             detailed.add(item);
         }
 
