@@ -17,10 +17,10 @@ import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 
-import searchengine.services.IndexRepository;
+import searchengine.repository.IndexRepository;
 import searchengine.services.IndexingService;
-import searchengine.services.LemmaRepository;
-import searchengine.services.PageRepository;
+import searchengine.repository.LemmaRepository;
+import searchengine.repository.PageRepository;
 
 import java.io.IOException;
 import java.util.*;
@@ -142,7 +142,6 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         }
         String content = "";
         try {
-            //content = doc.body().text();
             content = doc.html();
         } catch (Exception e) {
             log.warn("Ошибка при получении контекста страницы: {}", siteMap.getUrl());
@@ -164,21 +163,16 @@ public class SiteMapRecursiveAction extends RecursiveAction {
         page.setContent(content);
         pageRepository.save(page);
         processPageContent(page);
-//        log.info("Domain: {}", siteMap.getDomain());
-//        log.info("URL: {}", siteMap.getUrl());
-//        log.info("Path: {}", path);
     }
 
-    @Transactional
+
     protected void processPageContent(PageEntity page) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
         String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
         Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
         updateLemmasAndIndices(page, lemmas);
-        //log.info("индексы и леммы обновлены для страницы: {}", page.getId());
     }
 
-    @Transactional
     protected void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
         List<IndexEntity> indices = new ArrayList<>();
         int siteId = page.getSite().getId();

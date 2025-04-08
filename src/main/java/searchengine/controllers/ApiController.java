@@ -10,7 +10,7 @@ import searchengine.dto.search.SearchErrorResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexingService;
 import searchengine.services.SearchService;
-import searchengine.services.StatisticsService;
+import searchengine.repository.StatisticsService;
 
 
 import java.util.NoSuchElementException;
@@ -20,6 +20,7 @@ import java.util.NoSuchElementException;
 public class ApiController {
 
     private static final Logger logger = LoggerFactory.getLogger(ApiController.class);
+    private final String DEFAULT_ERROR_MESSAGE = "Указанная страница не найдена";
 
     private final StatisticsService statisticsService;
     private final IndexingService indexingService;
@@ -38,46 +39,46 @@ public class ApiController {
 
     @GetMapping("/startIndexing")
     public ResponseEntity<Response> startIndexing() {
-        return errorHandler(indexingService.startFullIndexing());
+        return ResponseEntity.ok(indexingService.startFullIndexing());
     }
 
     @GetMapping("/stopIndexing")
     public ResponseEntity<Response> stopIndexing() {
-        return errorHandler(indexingService.stopIndexing());
+        return ResponseEntity.ok(indexingService.stopIndexing());
     }
 
     @PostMapping("/indexPage")
     public ResponseEntity<?> handleIndexPage(@RequestParam String url) {
-        return errorHandler(indexingService.addOrUpdatePage(url));
+        return ResponseEntity.ok(indexingService.addOrUpdatePage(url));
     }
 
     @GetMapping("/search")
     public ResponseEntity<Response> search(@RequestParam String query, @RequestParam(required = false) String site) {
         logger.info("Запуск поиска...");
-        return errorHandler(searchService.startSearch(query, site));
+        return ResponseEntity.ok(searchService.startSearch(query, site));
     }
 
-    private ResponseEntity<Response> errorHandler(Response response) {
-        final String DEFAULT_ERROR_MESSAGE = "Указанная страница не найдена";
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Response> handleBadRequest() {
+        return ResponseEntity.badRequest()
+                .body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+    }
 
-        try {
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException ex) {
-            //400
-            logger.error("Bad Request", ex);
-            return ResponseEntity.badRequest().body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
-        } catch (SecurityException ex) {
-            // 401
-            logger.error("Unauthorized", ex);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
-        } catch (NoSuchElementException ex) {
-            // 404
-            logger.error("Page not found", ex);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
-        } catch (Exception ex) {
-            // 500
-            logger.error("Internal server error", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
-        }
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<Response> handleNotFound() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Response> handleUnauthorized() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Response> handleInternalError() {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new SearchErrorResponse(DEFAULT_ERROR_MESSAGE));
     }
 }

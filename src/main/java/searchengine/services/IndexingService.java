@@ -5,7 +5,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.dto.LemmaFrequencyAnalyzer;
@@ -17,6 +16,10 @@ import searchengine.dto.indexing.ErrorResponse;
 import searchengine.dto.indexing.IndexingResponse;
 import searchengine.model.*;
 import searchengine.dto.indexing.SiteMap;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
+import searchengine.repository.PageRepository;
+import searchengine.repository.SiteRepository;
 import searchengine.services.parser.SiteMapRecursiveAction;
 
 import java.io.IOException;
@@ -30,24 +33,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class IndexingService {
     private static final Logger log = LoggerFactory.getLogger(IndexingService.class);
 
-    @Autowired
     private final IndexingConfig indexingConfig;
-    @Autowired
     private final SiteRepository siteRepository;
-    @Autowired
     private final PageRepository pageRepository;
-    @Autowired
     private final IndexRepository indexRepository;
-    @Autowired
     private final LemmaRepository lemmaRepository;
-    @Autowired
     private final SitesList sites;
 
     private ForkJoinPool forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
     List<ForkJoinTask<?>> tasks = new CopyOnWriteArrayList<>();
     private ThreadPoolExecutor executor;
     private AtomicBoolean isStopped = new AtomicBoolean(true);
-    private SiteMapRecursiveAction task;
+
 
     private final String INDEXING_ALREADY_STARTED = "Индексация уже запущена";
     private final String INDEXING_STOPPED_BY_USER = "Индексация остановлена пользователем";
@@ -66,9 +63,6 @@ public class IndexingService {
             } else {
                 log.info("Запущена индексация");
                 forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
-//                executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(sites.getSites().size());
-//                executor.setMaximumPoolSize(Runtime.getRuntime().availableProcessors());
-                //executor.execute(this::indexSite);
                 indexSite();
                 IndexingResponse okResponse = new IndexingResponse();
                 okResponse.setResult(true);
@@ -79,7 +73,6 @@ public class IndexingService {
 
     public void indexSite() {
         if (isStopped.get()) {
-            task.stopRecursiveAction();
             return;
         }
         List<Site> sitesList = sites.getSites();
@@ -93,9 +86,6 @@ public class IndexingService {
             }
 
         }
-//        for (Site site : sitesList) {
-//            executor.execute(() -> processSite(site));
-//        }
     }
 
     private void processSite(Site site) {
@@ -146,17 +136,18 @@ public class IndexingService {
     }
 
     @Transactional
-    private void indexPage(Integer siteId) {
+    public void indexPage(Integer siteId) {
+        SiteEntity attachedSite = siteRepository.findById(siteId)
+                .orElseThrow(() -> new RuntimeException("Сайт с ID " + siteId + " не найден"));
+
+        SiteMapRecursiveAction task = createTask(attachedSite);
         if (isStopped.get()) {
             task.stopRecursiveAction();
             return;
         }
         log.info("Запуск обхода страниц для сайта с ID: {}", siteId);
         try {
-            SiteEntity attachedSite = siteRepository.findById(siteId)
-                    .orElseThrow(() -> new RuntimeException("Сайт с ID " + siteId + " не найден"));
 
-            task = createTask(attachedSite);
             forkJoinPool.invoke(task);
             if (!task.getPageBuffer().isEmpty()) {
                 pageRepository.saveAll(task.getPageBuffer());
@@ -223,7 +214,7 @@ public class IndexingService {
     }
 
     @Transactional
-    protected void processPageContent(PageEntity page) {
+    public void processPageContent(PageEntity page) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
         String text = frequencyAnalyzer.removeHtmlTags(page.getContent());
         Map<String, Integer> lemmas = frequencyAnalyzer.frequencyMap(text);
@@ -231,7 +222,7 @@ public class IndexingService {
     }
 
     @Transactional
-    protected void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
+    public void updateLemmasAndIndices(PageEntity page, Map<String, Integer> lemmas) {
         lemmas.forEach((lemmaText, rank) -> {
             LemmaEntity lemma = lemmaRepository.findByLemmaAndSite(lemmaText, page.getSite())
                     .orElseGet(() -> createNewLemma(lemmaText, page.getSite()));
@@ -295,7 +286,7 @@ public class IndexingService {
     }
 
     @Transactional
-    protected void deletePageData(PageEntity page) {
+    public void deletePageData(PageEntity page) {
         List<IndexEntity> indexes = indexRepository.findByPage(page);
         for (IndexEntity index : indexes) {
             Integer lemmaId = index.getLemmaId();
@@ -361,7 +352,7 @@ public class IndexingService {
     }
 
     @Transactional
-    private void updateSiteStatuses(Status from,Status to, String note) {
+    public void updateSiteStatuses(Status from,Status to, String note) {
         List<SiteEntity> indexingSites = siteRepository.findByStatus(from);
         for (SiteEntity site : indexingSites) {
             site.setStatus(to);

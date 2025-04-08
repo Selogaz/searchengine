@@ -1,4 +1,4 @@
-package searchengine.services;
+package searchengine.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-import searchengine.config.Site;
 import searchengine.model.SiteEntity;
 import searchengine.model.Status;
 

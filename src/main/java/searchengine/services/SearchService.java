@@ -15,6 +15,7 @@ import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
+import searchengine.repository.*;
 
 
 import java.util.*;
@@ -61,7 +62,6 @@ public class SearchService implements SearchRepository {
                 entries = indexRepository.findByLemmaId(sortedLemmas.get(lemma));
             } else {
                 entries = indexRepository.findByLemmaIdAndSiteUrl(sortedLemmas.get(lemma), url);
-//                entries = findEntriesManually(sortedLemmas.get(lemma), url);
             }
 
             Set<Integer> currentPages = entries.stream()
@@ -78,18 +78,6 @@ public class SearchService implements SearchRepository {
         }
         return resultPages != null ? resultPages : Collections.emptySet();
     }
-
-//    private List<IndexEntity> findEntriesManually(Integer lemmaId, String url) {
-//        List<IndexEntity> allEntries = indexRepository.findByLemmaId(lemmaId);
-//        allEntries.forEach(entry -> System.out.println(entry.getPage().getSite().getUrl()));
-//        if (url != null) {
-//            return allEntries.stream()
-//                    .filter(entry -> entry.getPage().getSite().getUrl().equalsIgnoreCase(url))
-//                    .toList();
-//        }
-//
-//        return allEntries;
-//    }
 
     private List<SearchResult> mainSearch(String query, String url) {
         LemmaFrequencyAnalyzer frequencyAnalyzer = new LemmaFrequencyAnalyzer();
