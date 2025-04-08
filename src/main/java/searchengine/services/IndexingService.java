@@ -44,7 +44,7 @@ public class IndexingService {
     List<ForkJoinTask<?>> tasks = new CopyOnWriteArrayList<>();
     private ThreadPoolExecutor executor;
     private AtomicBoolean isStopped = new AtomicBoolean(true);
-    private SiteMapRecursiveAction task;
+
 
     private final String INDEXING_ALREADY_STARTED = "Индексация уже запущена";
     private final String INDEXING_STOPPED_BY_USER = "Индексация остановлена пользователем";
@@ -73,7 +73,7 @@ public class IndexingService {
 
     public void indexSite() {
         if (isStopped.get()) {
-            task.stopRecursiveAction();
+
             return;
         }
         List<Site> sitesList = sites.getSites();
@@ -138,16 +138,17 @@ public class IndexingService {
 
     @Transactional
     private void indexPage(Integer siteId) {
+        SiteEntity attachedSite = siteRepository.findById(siteId)
+                .orElseThrow(() -> new RuntimeException("Сайт с ID " + siteId + " не найден"));
+
+        SiteMapRecursiveAction task = createTask(attachedSite);
         if (isStopped.get()) {
             task.stopRecursiveAction();
             return;
         }
         log.info("Запуск обхода страниц для сайта с ID: {}", siteId);
         try {
-            SiteEntity attachedSite = siteRepository.findById(siteId)
-                    .orElseThrow(() -> new RuntimeException("Сайт с ID " + siteId + " не найден"));
 
-            task = createTask(attachedSite);
             forkJoinPool.invoke(task);
             if (!task.getPageBuffer().isEmpty()) {
                 pageRepository.saveAll(task.getPageBuffer());
