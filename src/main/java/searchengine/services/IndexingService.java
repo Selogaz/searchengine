@@ -44,7 +44,7 @@ public class IndexingService {
     List<ForkJoinTask<?>> tasks = new CopyOnWriteArrayList<>();
     private ThreadPoolExecutor executor;
     private AtomicBoolean isStopped = new AtomicBoolean(true);
-
+    private final List<Thread> indexingThreads = Collections.synchronizedList(new ArrayList<>());
 
     private final String INDEXING_ALREADY_STARTED = "Индексация уже запущена";
     private final String INDEXING_STOPPED_BY_USER = "Индексация остановлена пользователем";
@@ -78,7 +78,9 @@ public class IndexingService {
         List<Site> sitesList = sites.getSites();
         for (int i = 0; i < sitesList.size();i++) {
             int finalI = i;
-            new Thread(() -> processSite(sitesList.get(finalI))).start();
+            Thread thread = new Thread(() -> processSite(sitesList.get(finalI)));
+            indexingThreads.add(thread);
+            thread.start();
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
@@ -92,6 +94,11 @@ public class IndexingService {
         synchronized (site.getUrl().intern()) {
             Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
             if (existingSite.isPresent()) {
+                lemmaRepository.deleteAllBySiteId(existingSite.get().getId());
+                List<PageEntity> pages = pageRepository.findAllBySiteId(existingSite.get().getId());
+                for (PageEntity page : pages) {
+                    indexRepository.deleteAllByPageId(page.getId());
+                }
                 pageRepository.deleteBySiteId(existingSite.get().getId());
                 siteRepository.delete(existingSite.get());
             }
@@ -340,6 +347,11 @@ public class IndexingService {
         updateSiteStatuses(Status.INDEXING,Status.FAILED, INDEXING_STOPPED_BY_USER);
         isStopped.set(true);
         stopForkJoinPool();
+        for (Thread thread : indexingThreads) {
+            if (thread != null && thread.isAlive()) {
+                thread.interrupt();
+            }
+        }
         if (executor != null) {
             executor.shutdownNow();
             log.info(executor.isShutdown() ? "ThreadPoolExecutor успешно остановлен." : "ThreadPoolExecutor не был остановлен.");
