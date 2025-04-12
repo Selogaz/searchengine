@@ -79,19 +79,6 @@ public class IndexingService {
         siteRepository.deleteAll();
     }
 
-    private void clearOneSite(Site site) {
-        Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
-        if (existingSite.isPresent()) {
-        lemmaRepository.deleteAllBySiteId(existingSite.get().getId());
-        List<PageEntity> pages = pageRepository.findAllBySiteId(existingSite.get().getId());
-        for (PageEntity page : pages) {
-            indexRepository.deleteAllByPageId(page.getId());
-        }
-        pageRepository.deleteBySiteId(existingSite.get().getId());
-        siteRepository.delete(existingSite.get());
-        }
-    }
-
     public void indexSite() {
         if (isStopped.get()) {
             return;
