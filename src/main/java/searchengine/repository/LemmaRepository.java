@@ -27,5 +27,8 @@ public interface LemmaRepository extends JpaRepository<LemmaEntity, Integer> {
 
     List<LemmaEntity> findAllBySiteId(Integer id);
 
-
+    @Transactional
+    @Modifying
+    @Query("DELETE FROM lemma l WHERE l.site.id = :siteId")
+    void deleteAllBySiteId(@Param("siteId") Integer siteId);
 }

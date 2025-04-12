@@ -1,6 +1,7 @@
 package searchengine.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,4 +21,9 @@ public interface IndexRepository extends JpaRepository<IndexEntity, Integer> {
             "JOIN p.site s " +
             "WHERE i.lemmaId = :lemmaId AND LOWER(s.url) = LOWER(:url)")
     List<IndexEntity> findByLemmaIdAndSiteUrl(@Param("lemmaId") Integer lemmaId, @Param("url") String url);
+
+    @Transactional
+    @Modifying
+    @Query("DELETE FROM IndexEntity i WHERE i.page.id = :pageId")
+    void deleteAllByPageId(@Param("pageId") Integer pageId);
 }

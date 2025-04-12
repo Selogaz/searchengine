@@ -44,7 +44,7 @@ public class IndexingService {
     List<ForkJoinTask<?>> tasks = new CopyOnWriteArrayList<>();
     private ThreadPoolExecutor executor;
     private AtomicBoolean isStopped = new AtomicBoolean(true);
-
+    private final List<Thread> indexingThreads = Collections.synchronizedList(new ArrayList<>());
 
     private final String INDEXING_ALREADY_STARTED = "Индексация уже запущена";
     private final String INDEXING_STOPPED_BY_USER = "Индексация остановлена пользователем";
@@ -63,12 +63,20 @@ public class IndexingService {
             } else {
                 log.info("Запущена индексация");
                 forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
+                clearAllSites();
                 indexSite();
                 IndexingResponse okResponse = new IndexingResponse();
                 okResponse.setResult(true);
                 response = okResponse;
             }
         return response;
+    }
+
+    private void clearAllSites() {
+        lemmaRepository.deleteAll();
+        indexRepository.deleteAll();
+        pageRepository.deleteAll();
+        siteRepository.deleteAll();
     }
 
     public void indexSite() {
@@ -78,7 +86,9 @@ public class IndexingService {
         List<Site> sitesList = sites.getSites();
         for (int i = 0; i < sitesList.size();i++) {
             int finalI = i;
-            new Thread(() -> processSite(sitesList.get(finalI))).start();
+            Thread thread = new Thread(() -> processSite(sitesList.get(finalI)));
+            indexingThreads.add(thread);
+            thread.start();
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
@@ -90,11 +100,6 @@ public class IndexingService {
 
     private void processSite(Site site) {
         synchronized (site.getUrl().intern()) {
-            Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
-            if (existingSite.isPresent()) {
-                pageRepository.deleteBySiteId(existingSite.get().getId());
-                siteRepository.delete(existingSite.get());
-            }
             SiteEntity siteEntity = createSiteEntity(site);
             siteRepository.save(siteEntity);
             siteRepository.flush();
@@ -340,6 +345,11 @@ public class IndexingService {
         updateSiteStatuses(Status.INDEXING,Status.FAILED, INDEXING_STOPPED_BY_USER);
         isStopped.set(true);
         stopForkJoinPool();
+        for (Thread thread : indexingThreads) {
+            if (thread != null && thread.isAlive()) {
+                thread.interrupt();
+            }
+        }
         if (executor != null) {
             executor.shutdownNow();
             log.info(executor.isShutdown() ? "ThreadPoolExecutor успешно остановлен." : "ThreadPoolExecutor не был остановлен.");
