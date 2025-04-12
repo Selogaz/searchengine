@@ -63,12 +63,33 @@ public class IndexingService {
             } else {
                 log.info("Запущена индексация");
                 forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors() * 2);
+                clearAllSites();
                 indexSite();
                 IndexingResponse okResponse = new IndexingResponse();
                 okResponse.setResult(true);
                 response = okResponse;
             }
         return response;
+    }
+
+    private void clearAllSites() {
+        lemmaRepository.deleteAll();
+        indexRepository.deleteAll();
+        pageRepository.deleteAll();
+        siteRepository.deleteAll();
+    }
+
+    private void clearOneSite(Site site) {
+        Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
+        if (existingSite.isPresent()) {
+        lemmaRepository.deleteAllBySiteId(existingSite.get().getId());
+        List<PageEntity> pages = pageRepository.findAllBySiteId(existingSite.get().getId());
+        for (PageEntity page : pages) {
+            indexRepository.deleteAllByPageId(page.getId());
+        }
+        pageRepository.deleteBySiteId(existingSite.get().getId());
+        siteRepository.delete(existingSite.get());
+        }
     }
 
     public void indexSite() {
@@ -92,16 +113,6 @@ public class IndexingService {
 
     private void processSite(Site site) {
         synchronized (site.getUrl().intern()) {
-            Optional<SiteEntity> existingSite = siteRepository.findByUrl(site.getUrl());
-            if (existingSite.isPresent()) {
-                lemmaRepository.deleteAllBySiteId(existingSite.get().getId());
-                List<PageEntity> pages = pageRepository.findAllBySiteId(existingSite.get().getId());
-                for (PageEntity page : pages) {
-                    indexRepository.deleteAllByPageId(page.getId());
-                }
-                pageRepository.deleteBySiteId(existingSite.get().getId());
-                siteRepository.delete(existingSite.get());
-            }
             SiteEntity siteEntity = createSiteEntity(site);
             siteRepository.save(siteEntity);
             siteRepository.flush();
